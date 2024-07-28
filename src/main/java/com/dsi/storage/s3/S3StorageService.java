@@ -4,8 +4,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
-import com.example.storage.core.StorageService;
-
+import com.dsi.storage.core.StorageService;
 import java.io.InputStream;
 
 public class S3StorageService implements StorageService {
