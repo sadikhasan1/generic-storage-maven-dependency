@@ -37,6 +37,7 @@ public class TestController {
 
             redirectAttributes.addFlashAttribute("message", "File uploaded successfully.");
         } catch (Exception e) {
+            e.printStackTrace();
             redirectAttributes.addFlashAttribute("message", "Error uploading file: " + e.getMessage());
         }
 
