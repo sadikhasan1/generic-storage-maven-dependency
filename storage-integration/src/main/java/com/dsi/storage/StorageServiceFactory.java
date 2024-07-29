@@ -12,7 +12,7 @@ import com.dsi.storage.minio.MinioStorageService;
 import com.dsi.storage.s3.S3StorageService;
 
 public class StorageServiceFactory {
-    public static StorageService createS3StorageService(String endpoint, String accessKey, String secretKey, String region, String bucketName) {
+    public static S3StorageService createS3StorageService(String endpoint, String accessKey, String secretKey, String region, String bucketName) {
         BasicAWSCredentials awsCreds = new BasicAWSCredentials(accessKey, secretKey);
         AmazonS3 amazonS3 = AmazonS3ClientBuilder.standard()
                 .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, region))
@@ -22,15 +22,15 @@ public class StorageServiceFactory {
         return new S3StorageService(amazonS3, bucketName);
     }
 
-    public static StorageService createMinioStorageService(String endpoint, String accessKey, String secretKey, String bucketName) {
+    public static MinioStorageService createMinioStorageService(String endpoint, String accessKey, String secretKey, String bucketName) {
         return new MinioStorageService(endpoint, accessKey, secretKey, bucketName);
     }
 
-    public static StorageService createAzureBlobStorageService(String connectionString, String containerName) {
+    public static AzureBlobStorageService createAzureBlobStorageService(String connectionString, String containerName) {
         return new AzureBlobStorageService(connectionString, containerName);
     }
 
-    public static StorageService createGoogleCloudStorageService(String projectId, String bucketName) {
+    public static GoogleCloudStorageService createGoogleCloudStorageService(String projectId, String bucketName) {
         return new GoogleCloudStorageService(projectId, bucketName);
     }
 }
