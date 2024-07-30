@@ -9,6 +9,8 @@
 <form th:action="@{/}" method="post" enctype="multipart/form-data">
     <input type="file" name="file" />
     <input type="submit" value="Upload" />
+    <a th:if="${bucketName != '' && objectName != ''}"  th:href="@{/download(bucketName=${bucketName}, objectName=${objectName})}">Download</a>
+
 </form>
 </body>
 </html>

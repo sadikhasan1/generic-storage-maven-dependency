@@ -2,6 +2,7 @@ package com.dsi.storage;
 
 import com.dsi.storage.azureblob.AzureBlobStorageService;
 import com.dsi.storage.config.StorageConfig;
+import com.dsi.storage.config.StorageConfigLoader;
 import com.dsi.storage.core.StorageService;
 import com.dsi.storage.googlecloud.GoogleCloudStorageService;
 import com.dsi.storage.minio.MinioStorageService;
@@ -22,7 +23,9 @@ import java.util.List;
 
 public class StorageServiceFactory {
 
-    public static StorageService createStorageService(StorageConfig config) throws IOException {
+    public static StorageService createStorageService(String configFilePath) throws IOException {
+        StorageConfig config = StorageConfigLoader.loadConfig(configFilePath);
+
         return switch (config.getServiceType().toLowerCase()) {
             case "s3" -> createS3StorageService(config.getEndpoint(), config.getAccessKey(), config.getSecretKey(), config.getRegion());
             case "minio" -> createMinioStorageService(config.getEndpoint(), config.getAccessKey(), config.getSecretKey());
@@ -32,7 +35,7 @@ public class StorageServiceFactory {
         };
     }
 
-    public static S3StorageService createS3StorageService(String endpoint, String accessKey, String secretKey, String region) {
+    private static S3StorageService createS3StorageService(String endpoint, String accessKey, String secretKey, String region) {
         validateNotEmpty(endpoint, accessKey, secretKey, region);
 
         S3Client s3Client = S3Client.builder()
@@ -44,7 +47,7 @@ public class StorageServiceFactory {
         return new S3StorageService(s3Client);
     }
 
-    public static StorageService createMinioStorageService(String endpoint, String accessKey, String secretKey) {
+    private static StorageService createMinioStorageService(String endpoint, String accessKey, String secretKey) {
         validateNotEmpty(endpoint, accessKey, secretKey);
 
         MinioClient minioClient = MinioClient.builder()
@@ -55,14 +58,14 @@ public class StorageServiceFactory {
         return new MinioStorageService(minioClient);
     }
 
-    public static StorageService createAzureBlobStorageService(String accountName, String accountKey) {
+    private static StorageService createAzureBlobStorageService(String accountName, String accountKey) {
         validateNotEmpty(accountName, accountKey);
 
         String connectionString = String.format("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net", accountName, accountKey);
         return new AzureBlobStorageService(connectionString);
     }
 
-    public static StorageService createGoogleCloudStorageService(String projectId, String credentialsFilePath) throws IOException {
+    private static StorageService createGoogleCloudStorageService(String projectId, String credentialsFilePath) throws IOException {
         validateNotEmpty(projectId, credentialsFilePath);
 
         GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(credentialsFilePath))
