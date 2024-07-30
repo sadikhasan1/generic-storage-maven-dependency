@@ -1,37 +1,59 @@
 package com.dsi.storage.s3;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
+
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 import com.dsi.storage.core.StorageService;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+
 import java.io.InputStream;
+
 
 public class S3StorageService implements StorageService {
 
-    private final AmazonS3 amazonS3;
-    private final String bucketName;
+    private final S3Client s3Client;
 
-    public S3StorageService(AmazonS3 amazonS3, String bucketName) {
-        this.amazonS3 = amazonS3;
-        this.bucketName = bucketName;
+    public S3StorageService(S3Client s3Client) {
+        this.s3Client = s3Client;
     }
 
     @Override
-    public void upload(String objectName, InputStream data, String contentType) throws Exception {
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentType(contentType);
-        amazonS3.putObject(new PutObjectRequest(bucketName, objectName, data, metadata));
+    public void upload(String bucketName, String objectName, InputStream data, String contentType) throws Exception {
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectName)
+                    .contentType(contentType)
+                    .build();
+
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(data, data.available()));
+        } catch (S3Exception e) {
+            throw new Exception("Error uploading object to S3: " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public InputStream download(String objectName) throws Exception {
-        S3Object s3Object = amazonS3.getObject(bucketName, objectName);
-        return s3Object.getObjectContent();
+    public InputStream download(String bucketName, String objectName) throws Exception {
+        try {
+            return s3Client.getObject(GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectName)
+                    .build());
+        } catch (S3Exception e) {
+            throw new Exception("Error downloading object from S3: " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public void delete(String objectName) throws Exception {
-        amazonS3.deleteObject(bucketName, objectName);
+    public void delete(String bucketName, String objectName) throws Exception {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectName)
+                    .build());
+        } catch (S3Exception e) {
+            throw new Exception("Error deleting object from S3: " + e.getMessage(), e);
+        }
     }
 }

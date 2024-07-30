@@ -14,22 +14,22 @@ import java.nio.channels.Channels;
 public class GoogleCloudStorageService implements StorageService {
 
     private final Storage storage;
-    private final String bucketName;
 
-    public GoogleCloudStorageService(String projectId, String bucketName) {
-        this.storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
-        this.bucketName = bucketName;
+    public GoogleCloudStorageService(Storage storage) {
+        this.storage = storage;
     }
 
     @Override
-    public void upload(String objectName, InputStream data, String contentType) throws Exception {
+    public void upload(String bucketName, String objectName, InputStream data, String contentType) throws Exception {
         BlobId blobId = BlobId.of(bucketName, objectName);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
+        BlobInfo blobInfo  = BlobInfo.newBuilder(blobId)
+                .setContentType(contentType)
+                .build();
         storage.create(blobInfo, data);
     }
 
     @Override
-    public InputStream download(String objectName) throws Exception {
+    public InputStream download(String bucketName, String objectName) throws Exception {
         Blob blob = storage.get(BlobId.of(bucketName, objectName));
         if (blob == null) {
             throw new Exception("Object not found");
@@ -39,7 +39,7 @@ public class GoogleCloudStorageService implements StorageService {
     }
 
     @Override
-    public void delete(String objectName) throws Exception {
+    public void delete(String bucketName, String objectName) throws Exception {
         BlobId blobId = BlobId.of(bucketName, objectName);
         storage.delete(blobId);
     }

@@ -12,7 +12,7 @@ public interface StorageService {
      * @param contentType the content type of the data
      * @throws Exception if any error occurs during the upload
      */
-    void upload(String objectName, InputStream data, String contentType) throws Exception;
+    void upload(String bucketName, String objectName, InputStream data, String contentType) throws Exception;
 
     /**
      * Downloads an object from the storage service.
@@ -21,7 +21,7 @@ public interface StorageService {
      * @return an input stream of the downloaded data
      * @throws Exception if any error occurs during the download
      */
-    InputStream download(String objectName) throws Exception;
+    InputStream download(String bucketName, String objectName) throws Exception;
 
     /**
      * Deletes an object from the storage service.
@@ -29,5 +29,5 @@ public interface StorageService {
      * @param objectName the name of the object to be deleted
      * @throws Exception if any error occurs during the deletion
      */
-    void delete(String objectName) throws Exception;
+    void delete(String bucketName, String objectName) throws Exception;
 }
