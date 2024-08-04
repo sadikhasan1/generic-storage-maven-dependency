@@ -62,9 +62,13 @@
     </properties>
     <distributionManagement>
         <repository>
-            <id>github-repo</id>
-            <url>https://maven.pkg.github.com/sadikhasan1/generic-storage-maven-dependency</url>
+            <id>nexus-releases</id>
+            <url>https://sonatype.innovatorslab.net/repository/maven-releases/</url>
         </repository>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <url>https://sonatype.innovatorslab.net/repository/maven-snapshots/</url>
+        </snapshotRepository>
     </distributionManagement>
 
 </project>

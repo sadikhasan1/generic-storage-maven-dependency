@@ -67,9 +67,8 @@
 	</build>
 	<repositories>
 		<repository>
-			<id>github-repo</id>
-			<url>https://maven.pkg.github.com/sadikhasan1/generic-storage-maven-dependency</url>
+			<id>nexus-snapshots</id>
+			<url>https://sonatype.innovatorslab.net/repository/maven-snapshots/</url>
 		</repository>
 	</repositories>
-
 </project>
