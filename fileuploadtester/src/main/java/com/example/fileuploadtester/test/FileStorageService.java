@@ -15,7 +15,7 @@ public class FileStorageService {
 
     public FileStorageService() {
         try {
-            storageService = StorageServiceFactory.createStorageService("/home/sadik/storage-config.yml");
+            storageService = StorageServiceFactory.createStorageService();
         } catch (IOException e) {
             throw new RuntimeException("Failed to initialize storage service", e);
         }

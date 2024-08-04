@@ -1,8 +1,6 @@
 package com.dsi.storage;
 
 import com.dsi.storage.azureblob.AzureBlobStorageService;
-import com.dsi.storage.config.StorageConfig;
-import com.dsi.storage.config.StorageConfigLoader;
 import com.dsi.storage.core.StorageService;
 import com.dsi.storage.googlecloud.GoogleCloudStorageService;
 import com.dsi.storage.minio.MinioStorageService;
@@ -22,16 +20,23 @@ import java.net.URI;
 import java.util.List;
 
 public class StorageServiceFactory {
+    public static StorageService createStorageService() throws IOException {
+        String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
+        String endpoint = System.getenv("STORAGE_ENDPOINT");
+        String accessKey = System.getenv("STORAGE_ACCESS_KEY");
+        String secretKey = System.getenv("STORAGE_SECRET_KEY");
+        String region = System.getenv("STORAGE_REGION");
+        String accountName = System.getenv("STORAGE_ACCOUNT_NAME");
+        String accountKey = System.getenv("STORAGE_ACCOUNT_KEY");
+        String projectId = System.getenv("STORAGE_PROJECT_ID");
+        String credentialsFilePath = System.getenv("STORAGE_CREDENTIALS_FILE_PATH");
 
-    public static StorageService createStorageService(String configFilePath) throws IOException {
-        StorageConfig config = StorageConfigLoader.loadConfig(configFilePath);
-
-        return switch (config.getServiceType().toLowerCase()) {
-            case "s3" -> createS3StorageService(config.getEndpoint(), config.getAccessKey(), config.getSecretKey(), config.getRegion());
-            case "minio" -> createMinioStorageService(config.getEndpoint(), config.getAccessKey(), config.getSecretKey());
-            case "azure" -> createAzureBlobStorageService(config.getAccountName(), config.getAccountKey());
-            case "gcs" -> createGoogleCloudStorageService(config.getProjectId(), config.getCredentialsFilePath());
-            default -> throw new IllegalArgumentException("Unknown storage service type: " + config.getServiceType());
+        return switch (serviceType.toLowerCase()) {
+            case "s3" -> createS3StorageService(endpoint, accessKey, secretKey, region);
+            case "minio" -> createMinioStorageService(endpoint, accessKey, secretKey);
+            case "azure" -> createAzureBlobStorageService(accountName, accountKey);
+            case "gcs" -> createGoogleCloudStorageService(projectId, credentialsFilePath);
+            default -> throw new IllegalArgumentException("Unknown storage service type: " + serviceType);
         };
     }
 

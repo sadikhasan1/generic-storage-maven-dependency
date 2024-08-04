@@ -1,5 +1,6 @@
 package com.example.fileuploadtester.test;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -25,6 +26,9 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
+    @Value("${storage.bucket}")
+    private String bucket;
+
     private final FileStorageService storageService;
 
     public TestController(FileStorageService storageService) {
@@ -89,7 +93,6 @@ public class TestController {
         System.out.println("Enters handleFileUpload");
         String fileName = file.getOriginalFilename();
         String contentType = file.getContentType();
-        String bucket = "justjjjjjjjjjjjj";
 
         try {
             System.out.println("Start File Upload");
