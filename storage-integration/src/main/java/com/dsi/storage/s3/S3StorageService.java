@@ -1,6 +1,7 @@
 package com.dsi.storage.s3;
 
 
+import com.dsi.storage.dto.BucketObject;
 import com.dsi.storage.util.FileUtils;
 import org.primefaces.model.file.UploadedFile;
 import org.springframework.core.io.InputStreamResource;
@@ -43,18 +44,18 @@ public class S3StorageService extends StorageService {
     }
 
     @Override
-    public String upload(String bucketName, String objectName, UploadedFile uploadedFile) {
+    public String upload(String containerName, UploadedFile uploadedFile) {
         try {
-            return upload(bucketName, objectName, uploadedFile.getInputStream(), uploadedFile.getContentType());
+            return upload(containerName, uploadedFile.getFileName(), uploadedFile.getInputStream(), uploadedFile.getContentType());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public String upload(String bucketName, String objectName, MultipartFile file) {
+    public String upload(String containerName, MultipartFile file) {
         try {
-            return upload(bucketName, objectName, file.getInputStream(), file.getContentType());
+            return upload(containerName, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -73,47 +74,67 @@ public class S3StorageService extends StorageService {
     }
 
     @Override
-    public InputStreamResource downloadInputStreamResource(String bucketName, String objectName) {
-        try (InputStream inputStream = download(bucketName, objectName)) {
-            return FileUtils.convertToInputStreamResource(inputStream, objectName);
+    public InputStream download(String filePath) {
+        BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+        return download(bucketObject.getBucketName(),  bucketObject.getObjectName());
+    }
+
+    @Override
+    public InputStreamResource downloadInputStreamResource(String filePath) {
+        try {
+            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+            InputStream inputStream = download(filePath);
+            return FileUtils.convertToInputStreamResource(inputStream, bucketObject.getObjectName());
         } catch (Exception e) {
             throw new RuntimeException("Error converting to UploadedFile", e);
         }
     }
 
     @Override
-    public UploadedFile downloadAsUploadedFile(String bucketName, String objectName) {
-        try (InputStream inputStream = download(bucketName, objectName)) {
-            return FileUtils.convertToUploadedFile(inputStream, objectName);
+    public UploadedFile downloadAsUploadedFile(String filePath) {
+        try {
+            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+            InputStream inputStream = download(filePath);
+            return FileUtils.convertToUploadedFile(inputStream, bucketObject.getObjectName());
         } catch (Exception e) {
             throw new RuntimeException("Error converting to UploadedFile", e);
         }
     }
 
     @Override
-    public MultipartFile downloadAsMultipartFile(String bucketName, String objectName) {
-        try (InputStream inputStream = download(bucketName, objectName)) {
-            return FileUtils.convertToMultipartFile(inputStream, objectName);
+    public MultipartFile downloadAsMultipartFile(String filePath) {
+        try {
+            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+            InputStream inputStream = download(filePath);
+            return FileUtils.convertToMultipartFile(inputStream, bucketObject.getObjectName());
         } catch (Exception e) {
             throw new RuntimeException("Error converting to MultipartFile", e);
         }
     }
 
     @Override
-    public ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String bucketName, String objectName) {
-        try (InputStream inputStream = download(bucketName, objectName)) {
-            return FileUtils.convertToResponseEntityForInputStreamResource(inputStream, objectName);
+    public ResponseEntity<Resource> downloadAsResponseEntityForResource(String filePath) {
+        try {
+            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+            InputStream inputStream = download(filePath);
+            byte[] fileData = FileUtils.readInputStreamToByteArray(inputStream);
+            String contentType = FileUtils.detectMimeType(fileData);
+            return FileUtils.createResponseEntityForResource(fileData, bucketObject.getObjectName(), contentType);
         } catch (Exception e) {
-            throw new RuntimeException("Error converting to ResponseEntity<InputStreamResource>", e);
+            throw new RuntimeException("Error converting to MultipartFile", e);
         }
     }
 
     @Override
-    public ResponseEntity<Resource> downloadAsResponseEntityForResource(String bucketName, String objectName) {
-        try (InputStream inputStream = download(bucketName, objectName)) {
-            return FileUtils.convertToResponseEntityForResource(inputStream, objectName);
+    public ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String filePath) {
+        try {
+            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+            InputStream inputStream = download(filePath);
+            byte[] fileData = FileUtils.readInputStreamToByteArray(inputStream);
+            String contentType = FileUtils.detectMimeType(fileData);
+            return FileUtils.createResponseEntityForInputStreamResource(fileData, bucketObject.getObjectName(), contentType);
         } catch (Exception e) {
-            throw new RuntimeException("Error converting to ResponseEntity<Resource>", e);
+            throw new RuntimeException("Error converting to MultipartFile", e);
         }
     }
 }

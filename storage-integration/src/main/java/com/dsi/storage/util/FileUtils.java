@@ -1,8 +1,10 @@
 package com.dsi.storage.util;
 
+import com.dsi.storage.dto.BucketObject;
 import org.apache.tika.Tika;
 import org.jetbrains.annotations.NotNull;
 import org.primefaces.model.file.UploadedFile;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -22,20 +24,9 @@ public class FileUtils {
 
     private static final Tika tika = new Tika();
 
-    public static byte[] readInputStreamToByteArray(InputStream inputStream) throws IOException {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                baos.write(buffer, 0, bytesRead);
-            }
-            return baos.toByteArray();
-        }
-    }
 
-    public static String detectMimeType(byte[] fileData) {
-        return tika.detect(fileData);
-    }
+
+
 
     public static UploadedFile createUploadedFile(byte[] fileData, String fileName, String contentType) {
         return new UploadedFile() {
@@ -144,47 +135,113 @@ public class FileUtils {
     public static ResponseEntity<InputStreamResource> createResponseEntityForInputStreamResource(byte[] fileData, String fileName, String contentType) {
         InputStreamResource resource = createInputStreamResource(fileData, fileName, contentType);
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + getOriginalFileName(fileName));
         headers.add(HttpHeaders.CONTENT_TYPE, contentType);
         return new ResponseEntity<>(resource, headers, HttpStatus.OK);
     }
 
-    public static ResponseEntity<Resource> createResponseEntityForResource(byte[] fileData, String fileName, String contentType) {
-        InputStreamResource resource = createInputStreamResource(fileData, fileName, contentType);
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
-        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
-        return new ResponseEntity<>(resource, headers, HttpStatus.OK);
-    }
+
 
     public static UploadedFile convertToUploadedFile(InputStream inputStream, String fileName) throws IOException {
         byte[] fileData = readInputStreamToByteArray(inputStream);
         String contentType = detectMimeType(fileData);
-        return createUploadedFile(fileData, fileName, contentType);
+        return createUploadedFile(fileData, getOriginalFileName(fileName), contentType);
     }
 
     public static MultipartFile convertToMultipartFile(InputStream inputStream, String fileName) throws IOException {
         byte[] fileData = readInputStreamToByteArray(inputStream);
         String contentType = detectMimeType(fileData);
-        return createMultipartFile(fileData, fileName, contentType);
+        return createMultipartFile(fileData, getOriginalFileName(fileName), contentType);
     }
 
     public static InputStreamResource convertToInputStreamResource(InputStream inputStream, String fileName) throws IOException {
         byte[] fileData = readInputStreamToByteArray(inputStream);
         String contentType = detectMimeType(fileData);
-        return createInputStreamResource(fileData, fileName, contentType);
+        return createInputStreamResource(fileData, getOriginalFileName(fileName), contentType);
     }
 
     public static ResponseEntity<InputStreamResource> convertToResponseEntityForInputStreamResource(InputStream inputStream, String fileName) throws IOException {
         byte[] fileData = readInputStreamToByteArray(inputStream);
         String contentType = detectMimeType(fileData);
-        return createResponseEntityForInputStreamResource(fileData, fileName, contentType);
+        return createResponseEntityForInputStreamResource(fileData, getOriginalFileName(fileName), contentType);
+    }
+
+    public static ResponseEntity<Resource> convertToResponseEntityForResource(InputStream inputStream, String fileName, String contentType) throws IOException {
+        byte[] fileData = readInputStreamToByteArray(inputStream);
+        return createResponseEntityForResource(fileData, getOriginalFileName(fileName), contentType);
+    }
+
+
+    public static byte[] readInputStreamToByteArray(InputStream inputStream) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                baos.write(buffer, 0, bytesRead);
+            }
+            return baos.toByteArray();
+        }
+    }
+
+    public static String detectMimeType(byte[] fileData) {
+        return tika.detect(fileData);
+    }
+
+    public static ByteArrayResource createByteArrayResource(byte[] fileData, String fileName, String contentType) {
+        return new ByteArrayResource(fileData) {
+            @NotNull
+            @Override
+            public String getDescription() {
+                return fileName + " (" + contentType + ")";
+            }
+        };
+    }
+
+    public static ResponseEntity<Resource> createResponseEntityForResource(byte[] fileData, String fileName, String contentType) {
+        ByteArrayResource resource = createByteArrayResource(fileData, fileName, contentType);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + getOriginalFileName(fileName));
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+        return new ResponseEntity<>(resource, headers, HttpStatus.OK);
     }
 
     public static ResponseEntity<Resource> convertToResponseEntityForResource(InputStream inputStream, String fileName) throws IOException {
         byte[] fileData = readInputStreamToByteArray(inputStream);
         String contentType = detectMimeType(fileData);
         return createResponseEntityForResource(fileData, fileName, contentType);
+    }
+
+    public static String getBaseBucketName(String bucketName) {
+        String[] parts = bucketName.split("/");
+        return parts[0];
+    }
+
+    public static String appendUUIDToFilename(String bucketName, String objectName) {
+        // Generate a unique identifier
+        String uuid = UUID.randomUUID().toString();
+
+        // Extract the part of the bucketName after the first slash
+        String bucketPrefix = bucketName.contains("/")
+                ? bucketName.substring(bucketName.indexOf('/') + 1)
+                : bucketName;
+
+        // Process objectName to handle extension
+        int dotIndex = objectName.lastIndexOf('.');
+        String baseName = dotIndex == -1 ? objectName : objectName.substring(0, dotIndex);
+        String extension = dotIndex == -1 ? "" : objectName.substring(dotIndex);
+
+        // Construct new file name with UUID and bucketPrefix
+        String newFileName = bucketPrefix + "/" + baseName + '-' + uuid + extension;
+
+        // Normalize the file path to remove double slashes and ensure single slashes
+        newFileName = newFileName.replaceAll("/+", "/");
+
+        // Ensure the file name does not start with a slash
+        if (newFileName.startsWith("/")) {
+            newFileName = newFileName.substring(1);
+        }
+
+        return newFileName;
     }
 
     public static String appendUUIDToFilename(String objectName) {
@@ -197,4 +254,34 @@ public class FileUtils {
         String extension = objectName.substring(dotIndex);
         return baseName + '-' + uuid + extension;
     }
+
+    public static BucketObject extractBucketAndObjectName(String filePath) {
+        int firstSlashIndex = filePath.indexOf('/');
+
+        // Check if "/" exists in the filePath
+        if (firstSlashIndex != -1) {
+            // Extract bucketName and objectName
+            String bucketName = filePath.substring(0, firstSlashIndex);
+            String objectName = filePath.substring(firstSlashIndex + 1);
+
+            return new BucketObject(bucketName, objectName);
+        } else {
+            // Handle case where "/" is not found (return null or handle differently)
+            return null;
+        }
+    }
+
+    public static String getOriginalFileName(String objectName) {
+        int lastSlashIndex = objectName.lastIndexOf('/');
+
+        // Check if "/" exists in the filePath
+        if (lastSlashIndex != -1) {
+            // Extract and return the file name
+            return objectName.substring(lastSlashIndex + 1);
+        } else {
+            // Handle case where "/" is not found (return the whole string or handle differently)
+            return objectName;
+        }
+    }
+
 }

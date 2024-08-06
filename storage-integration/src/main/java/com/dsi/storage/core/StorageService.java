@@ -26,20 +26,16 @@ import java.net.URI;
 import java.util.List;
 
 public abstract class StorageService {
-
-    public StorageService() {
-        StorageService storageService = init();
-    }
-
     public abstract String upload(String bucketName, String objectName, InputStream inputStream, String contentType);
-    public abstract String upload(String bucketName, String objectName, UploadedFile uploadedFile);
-    public abstract String upload(String bucketName, String objectName, MultipartFile file);
+    public abstract String upload(String bucketName, UploadedFile uploadedFile);
+    public abstract String upload(String bucketName, MultipartFile file);
+    public abstract InputStream download(String filePath);
     public abstract InputStream download(String bucketName, String objectName);
-    public abstract InputStreamResource downloadInputStreamResource(String bucketName, String objectName);
-    public abstract UploadedFile downloadAsUploadedFile(String bucketName, String objectName);
-    public abstract MultipartFile downloadAsMultipartFile(String bucketName, String objectName);
-    public abstract ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String bucketName, String objectName);
-    public abstract ResponseEntity<Resource> downloadAsResponseEntityForResource(String bucketName, String objectName);
+    public abstract InputStreamResource downloadInputStreamResource(String filePath);
+    public abstract UploadedFile downloadAsUploadedFile(String filePath);
+    public abstract MultipartFile downloadAsMultipartFile(String filePath);
+    public abstract ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String filePath);
+    public abstract ResponseEntity<Resource> downloadAsResponseEntityForResource(String filePath);
 
     public static StorageService init() {
         String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
@@ -51,6 +47,7 @@ public abstract class StorageService {
         String accountKey = System.getenv("STORAGE_ACCOUNT_KEY");
         String projectId = System.getenv("STORAGE_PROJECT_ID");
         String credentialsFilePath = System.getenv("STORAGE_CREDENTIALS_FILE_PATH");
+
 
         return switch (serviceType.toLowerCase()) {
             case "s3" -> createS3StorageService(endpoint, accessKey, secretKey, region);

@@ -27,9 +27,6 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
-    @Value("${storage.bucket}")
-    private String bucket;
-
     private final StorageService storageService;
 
     public TestController() {
@@ -38,37 +35,21 @@ public class TestController {
 
     @GetMapping("/")
     public String index(
-            @RequestParam(defaultValue = "") String bucketName,
-            @RequestParam(defaultValue = "") String objectName,
+            @RequestParam(defaultValue = "") String filePath,
             Model model) {
-        model.addAttribute("bucketName", bucketName);
-        model.addAttribute("objectName", objectName);
+        model.addAttribute("filePath", filePath);
         return "test";
     }
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(
-            @RequestParam String bucketName,
-            @RequestParam String objectName) throws Exception{
-        return storageService.downloadAsResponseEntityForResource(bucketName, objectName);
+            @RequestParam String filePath) throws Exception{
+        return storageService.downloadAsResponseEntityForResource(filePath);
     }
 
     @PostMapping("/")
     public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
-
-        try {
-            System.out.println("Start File Upload");
-            String bucketName = "my-bucket"; // Replace with your bucket/container name
-            String objectName = file.getOriginalFilename();
-            storageService.upload(bucketName, objectName, file);
-            System.out.println("End File Upload");
-
-            redirectAttributes.addFlashAttribute("message", "File uploaded successfully.");
-        } catch (Exception e) {
-            e.printStackTrace();
-            redirectAttributes.addFlashAttribute("message", "Error uploading file: " + e.getMessage());
-        }
-
-        return "redirect:/?bucketName=" + bucket + "&objectName=" + fileName;
+        String bucket = "just/atest/for/nested";
+        return "redirect:/?filePath=" + storageService.upload(bucket, file);
     }
 }
