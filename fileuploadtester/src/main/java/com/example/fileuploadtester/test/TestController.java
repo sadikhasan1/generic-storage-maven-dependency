@@ -1,5 +1,6 @@
 package com.example.fileuploadtester.test;
 
+import com.dsi.storage.core.StorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -29,12 +30,11 @@ public class TestController {
     @Value("${storage.bucket}")
     private String bucket;
 
-    private final FileStorageService storageService;
+    private final StorageService storageService;
 
-    public TestController(FileStorageService storageService) {
-        this.storageService = storageService;
+    public TestController() {
+        this.storageService = StorageService.init();
     }
-
 
     @GetMapping("/")
     public String index(
@@ -50,53 +50,17 @@ public class TestController {
     public ResponseEntity<Resource> downloadFile(
             @RequestParam String bucketName,
             @RequestParam String objectName) throws Exception{
-        try {
-            // Download file from storage service
-            InputStream inputStream = storageService.download(bucketName, objectName);
-
-            // Convert InputStream to byte[]
-            byte[] fileContent = convertInputStreamToByteArray(inputStream);
-
-            // Convert byte array to InputStreamResource
-            InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(fileContent));
-
-            // Build response with the file content
-            HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + objectName);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .contentLength(fileContent.length)
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(resource);
-
-        } catch (IOException e) {
-            // Handle error
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
-        }
-    }
-
-    private byte[] convertInputStreamToByteArray(InputStream inputStream) throws IOException {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-            return outputStream.toByteArray();
-        }
+        return storageService.downloadAsResponseEntityForResource(bucketName, objectName);
     }
 
     @PostMapping("/")
     public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
-        System.out.println("Enters handleFileUpload");
-        String fileName = file.getOriginalFilename();
-        String contentType = file.getContentType();
 
         try {
             System.out.println("Start File Upload");
-            storageService.upload(bucket, fileName, file.getInputStream(), contentType);
+            String bucketName = "my-bucket"; // Replace with your bucket/container name
+            String objectName = file.getOriginalFilename();
+            storageService.upload(bucketName, objectName, file);
             System.out.println("End File Upload");
 
             redirectAttributes.addFlashAttribute("message", "File uploaded successfully.");
