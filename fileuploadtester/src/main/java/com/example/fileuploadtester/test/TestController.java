@@ -27,11 +27,6 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
-    private final StorageService storageService;
-
-    public TestController() {
-        this.storageService = StorageService.init();
-    }
 
     @GetMapping("/")
     public String index(
@@ -41,15 +36,15 @@ public class TestController {
         return "test";
     }
 
-    @GetMapping("/download")
-    public ResponseEntity<Resource> downloadFile(
-            @RequestParam String filePath) throws Exception{
-        return storageService.downloadAsResponseEntityForResource(filePath);
-    }
+//    @GetMapping("/download")
+//    public ResponseEntity<Resource> downloadFile(
+//            @RequestParam String filePath) throws Exception{
+//        return StorageService.downloadAsResponseEntityForResource(filePath);
+//    }
 
     @PostMapping("/")
-    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
+    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
         String bucket = "just/atest/for/nested";
-        return "redirect:/?filePath=" + storageService.upload(bucket, file);
+        return "redirect:/?filePath=" + StorageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
     }
 }

@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.dsi'
-version '1.0-SNAPSHOT'
+version '2.0-SNAPSHOT'
 
 repositories {
     maven {
@@ -22,7 +22,7 @@ dependencies {
     implementation 'org.glassfish:jakarta.faces:4.1.1' // This should cover jakarta.faces-api
     implementation 'org.primefaces:primefaces:14.0.1:jakarta'
     implementation 'org.primefaces.extensions:primefaces-extensions:14.0.1:jakarta'
-    implementation 'com.dsi:storage-integration:1.0-SNAPSHOT'
+    implementation 'com.dsi:storage-integration:14.0-SNAPSHOT'
 }
 
 war {

@@ -7,18 +7,13 @@ import org.primefaces.model.file.UploadedFile;
 import org.primefaces.model.file.UploadedFiles;
 import com.dsi.storage.core.StorageService;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 
 @Named
 @ViewScoped
 public class FileUploadBean implements Serializable {
-
-//    private final StorageService storageService;
-//
-//    public FileUploadBean() {
-//        this.storageService = StorageService.init();
-//    }
-
     private UploadedFiles files;
 
     public UploadedFiles getFiles() {
@@ -30,13 +25,19 @@ public class FileUploadBean implements Serializable {
     }
 
     public void upload() {
-//        if (files != null && !files.getFiles().isEmpty()) {
-//            for (UploadedFile file : files.getFiles()) {
-//                storageService.upload("jsf/testing/nested/folder", file);
-//            }
-//        } else {
-//            System.out.println("No file selected.");
-//        }
-        System.out.println("No file selected.");
+        System.out.println("start");
+        if (files != null && !files.getFiles().isEmpty()) {
+            for (UploadedFile file : files.getFiles()) {
+                System.out.println("Processing file: " + file.getFileName());
+                try (InputStream inputStream = file.getInputStream()) {
+                    StorageService.upload("random", file.getFileName(), inputStream, file.getContentType());
+                } catch (IOException e) {
+                    System.err.println("Error uploading file: " + file.getFileName());
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            System.out.println("No file selected.");
+        }
     }
 }

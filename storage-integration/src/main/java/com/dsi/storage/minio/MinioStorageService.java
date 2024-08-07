@@ -1,39 +1,29 @@
 package com.dsi.storage.minio;
 
-import com.dsi.storage.core.StorageService;
 import com.dsi.storage.dto.BucketObject;
 import com.dsi.storage.util.FileUtils;
 import io.minio.*;
-import io.minio.errors.*;
-import org.apache.tika.Tika;
-import org.jetbrains.annotations.NotNull;
-import org.primefaces.model.file.UploadedFile;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MultipartFile;
+import java.io.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+public class MinioStorageService {
 
-public class MinioStorageService extends StorageService {
-
-    private final MinioClient minioClient;
-
-
-    public MinioStorageService(MinioClient minioClient) {
-        this.minioClient = minioClient;
+    private static MinioClient getMinioClient() {
+        String endpoint = System.getenv("STORAGE_ENDPOINT");
+        String accessKey = System.getenv("STORAGE_ACCESS_KEY");
+        String secretKey = System.getenv("STORAGE_SECRET_KEY");
+        FileUtils.validateNotEmpty(endpoint, accessKey, secretKey);
+        return MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
     }
 
-    @Override
-    public String upload(String bucketName, String objectName, InputStream data, String contentType) {
+    public static String upload(String bucketName, String objectName, InputStream data, String contentType) {
         try {
+            MinioClient minioClient = getMinioClient();
             String filename = FileUtils.appendUUIDToFilename(bucketName, objectName);
             String baseBucketName = FileUtils.getBaseBucketName(bucketName);
+            System.out.println("FileName = " + filename + ", baseBucketName = " + baseBucketName);
             boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(baseBucketName).build());
             if (!found) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(baseBucketName).build());
@@ -53,33 +43,9 @@ public class MinioStorageService extends StorageService {
         }
     }
 
-    @Override
-    public String upload(String bucketName, UploadedFile uploadedFile) {
+    public static InputStream download(String bucketName, String objectName) {
         try {
-            return upload(bucketName, uploadedFile.getFileName(), uploadedFile.getInputStream(), uploadedFile.getContentType());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public String upload(String bucketName, MultipartFile file) {
-        try {
-            return upload(bucketName, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public InputStream download(String filePath) {
-        BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-        return download(bucketObject.getBucketName(),  bucketObject.getObjectName());
-    }
-
-    @Override
-    public InputStream download(String bucketName, String objectName) {
-        try {
+            MinioClient minioClient = getMinioClient();
             return minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
@@ -91,62 +57,8 @@ public class MinioStorageService extends StorageService {
         }
     }
 
-    @Override
-    public InputStreamResource downloadInputStreamResource(String filePath) {
-        try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-            InputStream inputStream = download(filePath);
-            return FileUtils.convertToInputStreamResource(inputStream, bucketObject.getObjectName());
-        } catch (Exception e) {
-            throw new RuntimeException("Error converting to UploadedFile", e);
-        }
-    }
-
-    @Override
-    public UploadedFile downloadAsUploadedFile(String filePath) {
-        try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-            InputStream inputStream = download(filePath);
-            return FileUtils.convertToUploadedFile(inputStream, bucketObject.getObjectName());
-        } catch (Exception e) {
-            throw new RuntimeException("Error converting to UploadedFile", e);
-        }
-    }
-
-    @Override
-    public MultipartFile downloadAsMultipartFile(String filePath) {
-        try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-            InputStream inputStream = download(filePath);
-            return FileUtils.convertToMultipartFile(inputStream, bucketObject.getObjectName());
-        } catch (Exception e) {
-            throw new RuntimeException("Error converting to MultipartFile", e);
-        }
-    }
-
-    @Override
-    public ResponseEntity<Resource> downloadAsResponseEntityForResource(String filePath) {
-        try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-            InputStream inputStream = download(filePath);
-            byte[] fileData = FileUtils.readInputStreamToByteArray(inputStream);
-            String contentType = FileUtils.detectMimeType(fileData);
-            return FileUtils.createResponseEntityForResource(fileData, bucketObject.getObjectName(), contentType);
-        } catch (Exception e) {
-            throw new RuntimeException("Error converting to MultipartFile", e);
-        }
-    }
-
-    @Override
-    public ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String filePath) {
-        try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
-            InputStream inputStream = download(filePath);
-            byte[] fileData = FileUtils.readInputStreamToByteArray(inputStream);
-            String contentType = FileUtils.detectMimeType(fileData);
-            return FileUtils.createResponseEntityForInputStreamResource(fileData, bucketObject.getObjectName(), contentType);
-        } catch (Exception e) {
-            throw new RuntimeException("Error converting to MultipartFile", e);
-        }
+    public InputStream download(String filePath) {
+        BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+        return download(bucketObject.getBucketName(),  bucketObject.getObjectName());
     }
 }
