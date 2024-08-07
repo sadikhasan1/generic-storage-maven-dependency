@@ -8,10 +8,10 @@ version '1.0-SNAPSHOT'
 
 repositories {
     maven {
-        url 'https://maven.pkg.github.com/sadikhasan1/generic-storage-maven-dependency'
+        url 'https://sonatype.innovatorslab.net/repository/maven-public/'
         credentials {
-            username = 'sadikhasan1'
-            password = 'ghp_lhhhhhhhhhhhhhhhhhhhhhhhhhhhh'
+            username = 'admin'
+            password = 's9D78RgyiEugr'
         }
     }
     mavenCentral()
@@ -19,16 +19,15 @@ repositories {
 
 dependencies {
     implementation 'jakarta.platform:jakarta.jakartaee-api:10.0.0'
-    implementation 'org.glassfish:jakarta.faces:4.1.1'
-    implementation 'jakarta.faces:jakarta.faces-api:4.1.0'
+    implementation 'org.glassfish:jakarta.faces:4.1.1' // This should cover jakarta.faces-api
     implementation 'org.primefaces:primefaces:14.0.1:jakarta'
     implementation 'org.primefaces.extensions:primefaces-extensions:14.0.1:jakarta'
     implementation 'com.dsi:storage-integration:1.0-SNAPSHOT'
 }
 
-//war {
-//    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // Add this line
-//    from('src/main/webapp') {
-//        include '**'
-//    }
-//}
+war {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from('src/main/webapp') {
+        include '**'
+    }
+}

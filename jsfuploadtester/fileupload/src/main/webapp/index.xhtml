@@ -8,11 +8,11 @@
 </h:head>
 <h:body>
     <h:form enctype="multipart/form-data">
-        <p:fileUpload value="#{fileUploadBean.file}"
+        <p:fileUpload value="#{fileUploadBean.files}"
                       mode="advanced"
                       multiple="true"
                       auto="true"
-                      onupload="handleUpload" />
+                      update="messages" />
         <p:commandButton value="Upload"
                          action="#{fileUploadBean.upload}"
                          update="messages" />
