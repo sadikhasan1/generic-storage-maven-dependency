@@ -13,11 +13,11 @@ import java.io.Serializable;
 @ViewScoped
 public class FileUploadBean implements Serializable {
 
-//    private final StorageService storageService;
-//
-//    public FileUploadBean() {
-//        this.storageService = StorageService.init();
-//    }
+    private final StorageService storageService;
+
+    public FileUploadBean() {
+        this.storageService = StorageService.init();
+    }
 
     private UploadedFiles files;
 
@@ -30,13 +30,13 @@ public class FileUploadBean implements Serializable {
     }
 
     public void upload() {
-//        if (files != null && !files.getFiles().isEmpty()) {
-//            for (UploadedFile file : files.getFiles()) {
-//                storageService.upload("jsf/testing/nested/folder", file);
-//            }
-//        } else {
-//            System.out.println("No file selected.");
-//        }
+        if (files != null && !files.getFiles().isEmpty()) {
+            for (UploadedFile file : files.getFiles()) {
+                storageService.upload("jsf/testing/nested/folder", file);
+            }
+        } else {
+            System.out.println("No file selected.");
+        }
         System.out.println("No file selected.");
     }
 }

@@ -8,7 +8,7 @@ version '1.0-SNAPSHOT'
 
 repositories {
     maven {
-        url 'https://sonatype.innovatorslab.net/repository/maven-public/'
+        url 'https://sonatype.innovatorslab.net/repository/maven-snapshots/'
         credentials {
             username = 'admin'
             password = 's9D78RgyiEugr'
@@ -18,11 +18,13 @@ repositories {
 }
 
 dependencies {
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+
     implementation 'jakarta.platform:jakarta.jakartaee-api:10.0.0'
     implementation 'org.glassfish:jakarta.faces:4.1.1' // This should cover jakarta.faces-api
-    implementation 'org.primefaces:primefaces:14.0.1:jakarta'
+    implementation 'org.primefaces:primefaces:14.0.3:jakarta'
     implementation 'org.primefaces.extensions:primefaces-extensions:14.0.1:jakarta'
-    implementation 'com.dsi:storage-integration:1.0-SNAPSHOT'
+    implementation 'com.dsi:storage-integration:5.0-SNAPSHOT'
 }
 
 war {

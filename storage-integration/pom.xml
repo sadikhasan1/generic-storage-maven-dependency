@@ -6,15 +6,15 @@
 
     <groupId>com.dsi</groupId>
     <artifactId>storage-integration</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>5.0-SNAPSHOT</version>
 <dependencies>
     <!-- AWS SDK for S3 -->
 
-    <dependency>
-        <groupId>software.amazon.awssdk</groupId>
-        <artifactId>s3</artifactId>
-        <version>2.26.25</version>
-    </dependency>
+<!--    <dependency>-->
+<!--        <groupId>software.amazon.awssdk</groupId>-->
+<!--        <artifactId>s3</artifactId>-->
+<!--        <version>2.26.25</version>-->
+<!--    </dependency>-->
 
     <!-- Minio client -->
     <dependency>
@@ -23,25 +23,19 @@
         <version>8.5.2</version>
     </dependency>
 
-    <!-- Azure Blob Storage SDK -->
-    <dependency>
-        <groupId>com.azure</groupId>
-        <artifactId>azure-storage-blob</artifactId>
-        <version>12.14.2</version>
-    </dependency>
+<!--    &lt;!&ndash; Azure Blob Storage SDK &ndash;&gt;-->
+<!--    <dependency>-->
+<!--        <groupId>com.azure</groupId>-->
+<!--        <artifactId>azure-storage-blob</artifactId>-->
+<!--        <version>12.14.2</version>-->
+<!--    </dependency>-->
 
-    <!-- Google Cloud Storage SDK -->
-    <dependency>
-        <groupId>com.google.cloud</groupId>
-        <artifactId>google-cloud-storage</artifactId>
-        <version>2.3.0</version>
-    </dependency>
-
-    <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>2.2</version> <!-- Use the latest version -->
-    </dependency>
+<!--    &lt;!&ndash; Google Cloud Storage SDK &ndash;&gt;-->
+<!--    <dependency>-->
+<!--        <groupId>com.google.cloud</groupId>-->
+<!--        <artifactId>google-cloud-storage</artifactId>-->
+<!--        <version>2.3.0</version>-->
+<!--    </dependency>-->
 
     <dependency>
         <groupId>org.apache.tika</groupId>
@@ -49,11 +43,6 @@
         <version>2.9.2</version>
     </dependency>
 
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-        <version>3.3.2</version>
-    </dependency>
     <dependency>
         <groupId>org.primefaces</groupId>
         <artifactId>primefaces</artifactId>
