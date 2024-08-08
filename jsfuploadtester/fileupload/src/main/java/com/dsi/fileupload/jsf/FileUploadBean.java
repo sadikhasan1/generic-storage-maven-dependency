@@ -14,27 +14,23 @@ import java.io.Serializable;
 @Named
 @ViewScoped
 public class FileUploadBean implements Serializable {
-    private UploadedFiles files;
+    private UploadedFile file;
 
-    public UploadedFiles getFiles() {
-        return files;
+    public UploadedFile getFile() {
+        return file;
     }
 
-    public void setFiles(UploadedFiles files) {
-        this.files = files;
+    public void setFile(UploadedFile file) {  // Corrected setter method name
+        this.file = file;
     }
 
     public void upload() {
-        System.out.println("start");
-        if (files != null && !files.getFiles().isEmpty()) {
-            for (UploadedFile file : files.getFiles()) {
-                System.out.println("Processing file: " + file.getFileName());
-                try (InputStream inputStream = file.getInputStream()) {
-                    StorageService.upload("random", file.getFileName(), inputStream, file.getContentType());
-                } catch (IOException e) {
-                    System.err.println("Error uploading file: " + file.getFileName());
-                    e.printStackTrace();
-                }
+        if (file != null) {
+            try (InputStream inputStream = file.getInputStream()) {
+                StorageService.upload("jsf/test/for/nested", file.getFileName(), inputStream, file.getContentType());
+            } catch (IOException e) {
+                System.err.println("Error uploading file: " + file.getFileName());
+                e.printStackTrace();
             }
         } else {
             System.out.println("No file selected.");
