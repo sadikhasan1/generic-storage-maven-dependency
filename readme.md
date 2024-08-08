@@ -95,53 +95,76 @@ To set environment variables in IntelliJ IDEA:
 ```java
 package com.dsi.fileupload.jsf;
 
+import jakarta.faces.context.ExternalContext;
+import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
 import org.primefaces.model.file.UploadedFile;
-import org.primefaces.model.file.UploadedFiles;
 import com.dsi.storage.core.StorageService;
-import com.dsi.storage.core.StorageServiceFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Named
 @ViewScoped
 public class FileUploadBean implements Serializable {
-    private static final Logger LOGGER = Logger.getLogger(FileUploadBean.class.getName());
-    private final StorageService storageService;
-    private UploadedFiles files;
+    private UploadedFile file;
+    private String filepath;  // Field to store the uploaded file path
 
-    public FileUploadBean() {
-        this.storageService = StorageServiceFactory.getStorageService();
+    public UploadedFile getFile() {
+        return file;
     }
 
-    public UploadedFiles getFiles() {
-        return files;
+    public void setFile(UploadedFile file) {
+        this.file = file;
     }
 
-    public void setFiles(UploadedFiles files) {
-        this.files = files;
+    public String getFilepath() {
+        return filepath;
     }
 
     public void upload() {
-        LOGGER.log(Level.INFO, "Upload started");
-        if (files != null && !files.getFiles().isEmpty()) {
-            for (UploadedFile file : files.getFiles()) {
-                try (InputStream inputStream = file.getInputStream()) {
-                    storageService.upload("jsf/test/for/nested", file.getFileName(), inputStream, file.getContentType());
-                    LOGGER.log(Level.INFO, "Uploaded file: {0}", file.getFileName());
-                } catch (IOException e) {
-                    LOGGER.log(Level.SEVERE, "Error uploading file: " + file.getFileName(), e);
-                }
+        if (file != null) {
+            try (InputStream inputStream = file.getInputStream()) {
+                filepath = StorageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
+            } catch (IOException e) {
+                System.err.println("Error uploading file: " + file.getFileName());
+                e.printStackTrace();
             }
         } else {
-            LOGGER.log(Level.WARNING, "No file selected.");
+            System.out.println("No file selected.");
         }
-        LOGGER.log(Level.INFO, "Upload finished");
+    }
+
+    public void download() {
+        if (filepath != null) {
+            FacesContext facesContext = FacesContext.getCurrentInstance();
+            ExternalContext externalContext = facesContext.getExternalContext();
+            externalContext.responseReset();
+
+            try (InputStream inputStream = StorageService.download(filepath);
+                 OutputStream outputStream = externalContext.getResponseOutputStream()) {
+
+                externalContext.setResponseContentType(Files.probeContentType(Paths.get(filepath)));
+                externalContext.setResponseHeader("Content-Disposition", "attachment; filename=\"" + Paths.get(filepath).getFileName().toString() + "\"");
+
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+                outputStream.flush();
+                facesContext.responseComplete();
+
+            } catch (IOException e) {
+                System.err.println("Error downloading file: " + filepath);
+                e.printStackTrace();
+            }
+        }
     }
 }
 ```
@@ -159,15 +182,22 @@ public class FileUploadBean implements Serializable {
 </h:head>
 <h:body>
     <h:form enctype="multipart/form-data">
-        <p:fileUpload value="#{fileUploadBean.files}"
+        <p:fileUpload value="#{fileUploadBean.file}"
                       mode="advanced"
-                      multiple="true"
+                      multiple="false"
                       auto="true"
                       update="messages" />
         <p:commandButton value="Upload"
                          action="#{fileUploadBean.upload}"
-                         update="messages" />
+                         update="messages, downloadButton" />
         <p:messages id="messages" />
+        <h:panelGroup id="downloadButton">
+            <h:commandButton value="Download"
+                             action="#{fileUploadBean.download}"
+                             rendered="#{not empty fileUploadBean.filepath}"
+                             immediate="true"
+                             disableClientWindow="true" />
+        </h:panelGroup>
     </h:form>
 </h:body>
 </html>
@@ -178,8 +208,14 @@ public class FileUploadBean implements Serializable {
 ### TestController.java
 
 ```java
-package com.dsi.fileupload;
+package com.example.fileuploadtester.test;
 
+import com.dsi.storage.core.StorageService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -187,36 +223,52 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import com.dsi.storage.core.StorageService;
-import com.dsi.storage.core.StorageServiceFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+
+
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+
+import java.io.ByteArrayOutputStream;
+
 
 @Controller
 public class TestController {
-    private final StorageService storageService;
-
-    public TestController() {
-        this.storageService = StorageServiceFactory.getStorageService();
-    }
 
     @GetMapping("/")
-    public String index(@RequestParam(defaultValue = "") String filePath, Model model) {
+    public String index(
+            @RequestParam(defaultValue = "") String filePath,
+            Model model) {
         model.addAttribute("filePath", filePath);
         return "test";
     }
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
-        return StorageService.downloadAsResponseEntityForResource(filePath);
+        InputStream inputStream = StorageService.download(filePath);
+        if (inputStream == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+
+        InputStreamResource resource = new InputStreamResource(inputStream);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filePath + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(inputStream.available())
+                .body(resource);
     }
 
     @PostMapping("/")
     public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
         String bucket = "just/atest/for/nested";
-        String filePath = storageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
-        redirectAttributes.addAttribute("filePath", filePath);
-        return "redirect:/";
+        return "redirect:/?filePath=" + StorageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
     }
 }
 ```
@@ -235,7 +287,8 @@ public class TestController {
 <form th:action="@{/}" method="post" enctype="multipart/form-data">
     <input type="file" name="file" />
     <input type="submit" value="Upload" />
-    <a th:if="${filePath != ''}" th:href="@{/download(filePath=${filePath})}">Download</a>
+    <a th:if="${filePath != ''}"  th:href="@{/download(filePath=${filePath})}">Download</a>
+
 </form>
 </body>
 </html>
