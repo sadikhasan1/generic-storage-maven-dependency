@@ -253,15 +253,17 @@ public class TestController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
 
-        InputStreamResource resource = new InputStreamResource(inputStream);
+        byte[] bytes = inputStream.readAllBytes();
+        InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(bytes));
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filePath + "\"");
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
         headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
 
         return ResponseEntity.ok()
                 .headers(headers)
-                .contentLength(inputStream.available())
+                .contentLength(bytes.length)
                 .body(resource);
     }
 
