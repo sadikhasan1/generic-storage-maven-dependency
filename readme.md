@@ -69,9 +69,9 @@ Add the following environment variables to your `.bashrc` or `.bash_profile`:
 
 ```bash
 export STORAGE_SERVICE_TYPE=minio
-export MINIO_ENDPOINT=https://your-minio-endpoint
-export MINIO_ACCESS_KEY=your-access-key
-export MINIO_SECRET_KEY=your-secret-key
+export STORAGE_ENDPOINT=https://your-minio-endpoint
+export STORAGE_ACCESS_KEY=your-access-key
+export STORAGE_SECRET_KEY=your-secret-key
 ```
 
 Reload the configuration:
