@@ -1,6 +1,9 @@
 package com.example.fileuploadtester.test;
 
 import com.dsi.storage.core.StorageService;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +30,12 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
+
+    private final ServletContext servletContext;
+
+    public TestController(ServletContext servletContext) {
+        this.servletContext = servletContext;
+    }
 
     @GetMapping("/")
     public String index(
@@ -55,6 +64,13 @@ public class TestController {
                 .headers(headers)
                 .contentLength(bytes.length)
                 .body(resource);
+    }
+
+    @GetMapping("/image-manual-response")
+    public void getImageAsByteArray(HttpServletResponse response) throws IOException {
+        InputStream in = StorageService.download("bucketname/nested/folder/image.png");
+        response.setContentType(MediaType.IMAGE_JPEG_VALUE);
+        IOUtils.copy(in, response.getOutputStream());
     }
 
 
