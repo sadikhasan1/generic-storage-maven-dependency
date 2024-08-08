@@ -10,13 +10,20 @@
     <h:form enctype="multipart/form-data">
         <p:fileUpload value="#{fileUploadBean.file}"
                       mode="advanced"
-                      multiple="true"
+                      multiple="false"
                       auto="true"
                       update="messages" />
         <p:commandButton value="Upload"
                          action="#{fileUploadBean.upload}"
-                         update="messages" />
+                         update="messages, downloadButton" />
         <p:messages id="messages" />
+        <h:panelGroup id="downloadButton">
+            <h:commandButton value="Download"
+                             action="#{fileUploadBean.download}"
+                             rendered="#{not empty fileUploadBean.filepath}"
+                             immediate="true"
+                             disableClientWindow="true" />
+        </h:panelGroup>
     </h:form>
 </h:body>
 </html>

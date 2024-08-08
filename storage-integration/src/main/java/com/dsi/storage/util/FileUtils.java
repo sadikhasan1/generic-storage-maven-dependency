@@ -216,18 +216,23 @@ public class FileUtils {
         // Generate a unique identifier
         String uuid = UUID.randomUUID().toString();
 
-        // Extract the part of the bucketName after the first slash
+        // Extract the part of the bucketName after the first slash if it exists
         String bucketPrefix = bucketName.contains("/")
                 ? bucketName.substring(bucketName.indexOf('/') + 1)
-                : bucketName;
+                : "";
 
         // Process objectName to handle extension
         int dotIndex = objectName.lastIndexOf('.');
         String baseName = dotIndex == -1 ? objectName : objectName.substring(0, dotIndex);
         String extension = dotIndex == -1 ? "" : objectName.substring(dotIndex);
 
-        // Construct new file name with UUID and bucketPrefix
-        String newFileName = bucketPrefix + "/" + baseName + '-' + uuid + extension;
+        // Construct new file name with UUID and optional bucketPrefix
+        String newFileName;
+        if (bucketPrefix.isEmpty()) {
+            newFileName = baseName + '-' + uuid + extension;
+        } else {
+            newFileName = bucketPrefix + "/" + baseName + '-' + uuid + extension;
+        }
 
         // Normalize the file path to remove double slashes and ensure single slashes
         newFileName = newFileName.replaceAll("/+", "/");
