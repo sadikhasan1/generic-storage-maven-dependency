@@ -1,46 +1,64 @@
 package com.dsi.storage.googlecloud;
 
-import com.dsi.storage.core.StorageService;
+import com.dsi.storage.dto.BucketObject;
+import com.dsi.storage.util.FileUtils;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.*;
+import com.google.auth.oauth2.GoogleCredentials;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
+import java.util.List;
 
-public class GoogleCloudStorageService implements StorageService {
+public class GoogleCloudStorageService {
+    public static String upload(String bucketName, String objectName, InputStream data, String contentType) {
+        Storage storage = getStorage();
 
-    private final Storage storage;
 
-    public GoogleCloudStorageService(Storage storage) {
-        this.storage = storage;
-    }
-
-    @Override
-    public void upload(String bucketName, String objectName, InputStream data, String contentType) throws Exception {
-        BlobId blobId = BlobId.of(bucketName, objectName);
+        String filename = FileUtils.appendUUIDToFilename(objectName);
+        BlobId blobId = BlobId.of(bucketName, filename);
         BlobInfo blobInfo  = BlobInfo.newBuilder(blobId)
                 .setContentType(contentType)
                 .build();
         storage.create(blobInfo, data);
+        return filename;
     }
 
-    @Override
-    public InputStream download(String bucketName, String objectName) throws Exception {
+    private static Storage getStorage() {
+        String projectId = System.getenv("STORAGE_PROJECT_ID");
+        String credentialsFilePath = System.getenv("STORAGE_CREDENTIALS_FILE_PATH");
+        FileUtils.validateNotEmpty(projectId, credentialsFilePath);
+
+        GoogleCredentials credentials = null;
+        try {
+            credentials = GoogleCredentials.fromStream(new FileInputStream(credentialsFilePath))
+                    .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Storage storage = StorageOptions.newBuilder()
+                .setCredentials(credentials)
+                .setProjectId(projectId)
+                .build()
+                .getService();
+        return storage;
+    }
+
+    public static InputStream download(String bucketName, String objectName) {
+        Storage storage = getStorage();
         Blob blob = storage.get(BlobId.of(bucketName, objectName));
         if (blob == null) {
-            throw new Exception("Object not found");
+            return null;
         }
         ReadChannel readChannel = blob.reader();
         return Channels.newInputStream(readChannel);
     }
 
-    @Override
-    public void delete(String bucketName, String objectName) throws Exception {
-        BlobId blobId = BlobId.of(bucketName, objectName);
-        storage.delete(blobId);
+    public InputStream download(String filePath) {
+        BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+        return download(bucketObject.getBucketName(),  bucketObject.getObjectName());
     }
 }

@@ -1,5 +1,6 @@
 package com.example.fileuploadtester.test;
 
+import com.dsi.storage.core.StorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -26,85 +27,24 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
-    @Value("${storage.bucket}")
-    private String bucket;
-
-    private final FileStorageService storageService;
-
-    public TestController(FileStorageService storageService) {
-        this.storageService = storageService;
-    }
-
 
     @GetMapping("/")
     public String index(
-            @RequestParam(defaultValue = "") String bucketName,
-            @RequestParam(defaultValue = "") String objectName,
+            @RequestParam(defaultValue = "") String filePath,
             Model model) {
-        model.addAttribute("bucketName", bucketName);
-        model.addAttribute("objectName", objectName);
+        model.addAttribute("filePath", filePath);
         return "test";
     }
 
-    @GetMapping("/download")
-    public ResponseEntity<Resource> downloadFile(
-            @RequestParam String bucketName,
-            @RequestParam String objectName) throws Exception{
-        try {
-            // Download file from storage service
-            InputStream inputStream = storageService.download(bucketName, objectName);
-
-            // Convert InputStream to byte[]
-            byte[] fileContent = convertInputStreamToByteArray(inputStream);
-
-            // Convert byte array to InputStreamResource
-            InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(fileContent));
-
-            // Build response with the file content
-            HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + objectName);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .contentLength(fileContent.length)
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(resource);
-
-        } catch (IOException e) {
-            // Handle error
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
-        }
-    }
-
-    private byte[] convertInputStreamToByteArray(InputStream inputStream) throws IOException {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-            return outputStream.toByteArray();
-        }
-    }
+//    @GetMapping("/download")
+//    public ResponseEntity<Resource> downloadFile(
+//            @RequestParam String filePath) throws Exception{
+//        return StorageService.downloadAsResponseEntityForResource(filePath);
+//    }
 
     @PostMapping("/")
-    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
-        System.out.println("Enters handleFileUpload");
-        String fileName = file.getOriginalFilename();
-        String contentType = file.getContentType();
-
-        try {
-            System.out.println("Start File Upload");
-            storageService.upload(bucket, fileName, file.getInputStream(), contentType);
-            System.out.println("End File Upload");
-
-            redirectAttributes.addFlashAttribute("message", "File uploaded successfully.");
-        } catch (Exception e) {
-            e.printStackTrace();
-            redirectAttributes.addFlashAttribute("message", "Error uploading file: " + e.getMessage());
-        }
-
-        return "redirect:/?bucketName=" + bucket + "&objectName=" + fileName;
+    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
+        String bucket = "just/atest/for/nested";
+        return "redirect:/?filePath=" + StorageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
     }
 }

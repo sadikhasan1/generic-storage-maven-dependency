@@ -2,32 +2,91 @@ package com.dsi.storage.core;
 
 import java.io.InputStream;
 
-public interface StorageService {
+import com.dsi.storage.azureblob.AzureBlobStorageService;
+import com.dsi.storage.dto.BucketObject;
+import com.dsi.storage.googlecloud.GoogleCloudStorageService;
+import com.dsi.storage.minio.MinioStorageService;
+import com.dsi.storage.s3.S3StorageService;
+import com.dsi.storage.util.FileUtils;
+import io.minio.*;
 
-    /**
-     * Uploads an object to the storage service.
-     *
-     * @param objectName  the name of the object to be uploaded
-     * @param data        the input stream of the data to be uploaded
-     * @param contentType the content type of the data
-     * @throws Exception if any error occurs during the upload
-     */
-    void upload(String bucketName, String objectName, InputStream data, String contentType) throws Exception;
+public class StorageService {
+//    public abstract String upload(String bucketName, String objectName, InputStream inputStream, String contentType);
+//    public abstract String upload(String bucketName, UploadedFile uploadedFile);
+//    public abstract String upload(String bucketName, MultipartFile file);
+//    public abstract InputStream download(String filePath);
+//    public abstract InputStream download(String bucketName, String objectName);
+//    public abstract InputStreamResource downloadInputStreamResource(String filePath);
+//    public abstract UploadedFile downloadAsUploadedFile(String filePath);
+//    public abstract MultipartFile downloadAsMultipartFile(String filePath);
+//    public abstract ResponseEntity<InputStreamResource> downloadAsResponseEntityForInputStreamResource(String filePath);
+//    public abstract ResponseEntity<Resource> downloadAsResponseEntityForResource(String filePath);
 
-    /**
-     * Downloads an object from the storage service.
-     *
-     * @param objectName the name of the object to be downloaded
-     * @return an input stream of the downloaded data
-     * @throws Exception if any error occurs during the download
-     */
-    InputStream download(String bucketName, String objectName) throws Exception;
+    public static String upload(String bucketName, String objectName, InputStream inputStream, String contentType) {
+        String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
 
-    /**
-     * Deletes an object from the storage service.
-     *
-     * @param objectName the name of the object to be deleted
-     * @throws Exception if any error occurs during the deletion
-     */
-    void delete(String bucketName, String objectName) throws Exception;
+        return switch (serviceType.toLowerCase()) {
+            case "minio" -> MinioStorageService.upload(bucketName, objectName, inputStream, contentType);
+            case "aws" -> S3StorageService.upload(bucketName, objectName, inputStream, contentType);
+            case "azure" -> AzureBlobStorageService.upload(bucketName, objectName, inputStream, contentType);
+            case "gcp" -> GoogleCloudStorageService.upload(bucketName, objectName, inputStream, contentType);
+            default -> throw new IllegalStateException("Unsupported storage environment: " + serviceType);
+        };
+    }
+
+    public static InputStream download(String bucketName, String objectName) {
+        String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
+
+        return switch (serviceType.toLowerCase()) {
+            case "minio" -> MinioStorageService.download(bucketName, objectName);
+            case "aws" -> S3StorageService.download(bucketName, objectName);
+            case "azure" -> AzureBlobStorageService.download(bucketName, objectName);
+            case "gcp" -> GoogleCloudStorageService.download(bucketName, objectName);
+            default -> throw new IllegalStateException("Unsupported storage environment: " + serviceType);
+        };
+    }
+
+    public static InputStream download(String filePath){
+        BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
+        return download(bucketObject.getBucketName(),  bucketObject.getObjectName());
+    }
+
+//    private static StorageService createS3StorageService(String endpoint, String accessKey, String secretKey, String region) {
+//        validateNotEmpty(endpoint, accessKey, secretKey, region);
+//
+//        S3Client s3Client = S3Client.builder()
+//                .endpointOverride(URI.create(endpoint))
+//                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+//                .region(Region.of(region))
+//                .build();
+//
+//        return new S3StorageService(s3Client);
+//    }
+//
+//    private static StorageService createAzureBlobStorageService(String accountName, String accountKey) {
+//        validateNotEmpty(accountName, accountKey);
+//
+//        String connectionString = String.format("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net", accountName, accountKey);
+//        return new AzureBlobStorageService(connectionString);
+//    }
+//
+//    private static StorageService createGoogleCloudStorageService(String projectId, String credentialsFilePath) {
+//        validateNotEmpty(projectId, credentialsFilePath);
+//
+//        GoogleCredentials credentials = null;
+//        try {
+//            credentials = GoogleCredentials.fromStream(new FileInputStream(credentialsFilePath))
+//                    .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//        Storage storage = StorageOptions.newBuilder()
+//                .setCredentials(credentials)
+//                .setProjectId(projectId)
+//                .build()
+//                .getService();
+//
+//        return new GoogleCloudStorageService(storage);
+//    }
 }

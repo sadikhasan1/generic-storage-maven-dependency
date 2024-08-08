@@ -43,7 +43,7 @@
 		<dependency>
 			<groupId>com.dsi</groupId>
 			<artifactId>storage-integration</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>14.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
