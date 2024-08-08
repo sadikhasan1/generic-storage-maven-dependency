@@ -33,12 +33,9 @@ public class FileUploadBean implements Serializable {
     }
 
     public void upload() {
-        System.out.println("start");
         if (file != null) {
-            System.out.println("Processing file: " + file.getFileName());
             try (InputStream inputStream = file.getInputStream()) {
                 filepath = StorageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
-                System.out.println("File uploaded to: " + filepath);
             } catch (IOException e) {
                 System.err.println("Error uploading file: " + file.getFileName());
                 e.printStackTrace();
@@ -50,7 +47,6 @@ public class FileUploadBean implements Serializable {
 
     public void download() {
         if (filepath != null) {
-            System.out.println("filepath: " + filepath);
             FacesContext facesContext = FacesContext.getCurrentInstance();
             ExternalContext externalContext = facesContext.getExternalContext();
             externalContext.responseReset();
