@@ -36,11 +36,24 @@ public class TestController {
         return "test";
     }
 
-//    @GetMapping("/download")
-//    public ResponseEntity<Resource> downloadFile(
-//            @RequestParam String filePath) throws Exception{
-//        return StorageService.downloadAsResponseEntityForResource(filePath);
-//    }
+    @GetMapping("/download")
+    public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
+        InputStream inputStream = StorageService.download(filePath);
+        if (inputStream == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+
+        InputStreamResource resource = new InputStreamResource(inputStream);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filePath + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(inputStream.available())
+                .body(resource);
+    }
 
     @PostMapping("/")
     public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
