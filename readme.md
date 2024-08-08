@@ -15,10 +15,29 @@ Add the following dependency to your `pom.xml`:
 
 <repositories>
     <repository>
-        <id>nexus-snapshots</id>
+        <id>nexus-releases</id>
         <url>https://sonatype.innovatorslab.net/repository/maven-public/</url>
     </repository>
 </repositories>
+```
+
+Add the following lines to your `~/.m2/settings.xml`:
+
+```xml
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+    <servers>
+        <server>
+            <id>nexus-releases</id>
+	    <username>admin</username>
+	    <password>pass</password>
+        </server>
+        <server>
+            <id>nexus-snapshots</id>
+	    <username>admin</username>
+	    <password>pass</password>
+        </server>
+    </servers>
+</settings>
 ```
 
 ## Gradle Dependency
