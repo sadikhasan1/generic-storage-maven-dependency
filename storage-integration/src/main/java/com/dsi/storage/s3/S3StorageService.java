@@ -1,5 +1,6 @@
 package com.dsi.storage.s3;
 
+import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.BucketObject;
 import com.dsi.storage.util.FileUtils;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -15,9 +16,25 @@ import java.io.InputStream;
 import java.net.URI;
 
 
-public class S3StorageService {
-    public static String upload(String bucketName, String objectName, InputStream data, String contentType) {
-        S3Client s3Client = getS3Client();
+public class S3StorageService implements StorageClient {
+    private final S3Client s3Client;
+
+    public S3StorageService() {
+        String endpoint = System.getenv("STORAGE_ENDPOINT");
+        String accessKey = System.getenv("STORAGE_ACCESS_KEY");
+        String secretKey = System.getenv("STORAGE_SECRET_KEY");
+        String region = System.getenv("STORAGE_REGION");
+        FileUtils.validateNotEmpty(endpoint, accessKey, secretKey, region);
+
+        this.s3Client = S3Client.builder()
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+                .region(Region.of(region))
+                .build();
+    }
+
+    @Override
+    public String upload(String bucketName, String objectName, InputStream data, String contentType) {
         try {
             String filename = FileUtils.appendUUIDToFilename(objectName);
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -33,23 +50,8 @@ public class S3StorageService {
         }
     }
 
-    private static S3Client getS3Client() {
-        String endpoint = System.getenv("STORAGE_ENDPOINT");
-        String accessKey = System.getenv("STORAGE_ACCESS_KEY");
-        String secretKey = System.getenv("STORAGE_SECRET_KEY");
-        String region = System.getenv("STORAGE_REGION");
-        FileUtils.validateNotEmpty(endpoint, accessKey, secretKey, region);
-
-        S3Client s3Client = S3Client.builder()
-                .endpointOverride(URI.create(endpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-                .region(Region.of(region))
-                .build();
-        return s3Client;
-    }
-
-    public static InputStream download(String bucketName, String objectName) {
-        S3Client s3Client = getS3Client();
+    @Override
+    public InputStream download(String bucketName, String objectName) {
         try {
             return s3Client.getObject(GetObjectRequest.builder()
                     .bucket(bucketName)
@@ -60,6 +62,7 @@ public class S3StorageService {
         }
     }
 
+    @Override
     public InputStream download(String filePath) {
         BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
         return download(bucketObject.getBucketName(),  bucketObject.getObjectName());

@@ -1,26 +1,28 @@
 package com.dsi.storage.minio;
 
+import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.BucketObject;
 import com.dsi.storage.util.FileUtils;
 import io.minio.*;
 import java.io.*;
 
-public class MinioStorageService {
+public class MinioStorageService implements StorageClient {
+    private final MinioClient minioClient;
 
-    private static MinioClient getMinioClient() {
+    public MinioStorageService() {
         String endpoint = System.getenv("STORAGE_ENDPOINT");
         String accessKey = System.getenv("STORAGE_ACCESS_KEY");
         String secretKey = System.getenv("STORAGE_SECRET_KEY");
         FileUtils.validateNotEmpty(endpoint, accessKey, secretKey);
-        return MinioClient.builder()
+        this.minioClient = MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
                 .build();
     }
 
-    public static String upload(String bucketName, String objectName, InputStream data, String contentType) {
+    @Override
+    public String upload(String bucketName, String objectName, InputStream data, String contentType) {
         try {
-            MinioClient minioClient = getMinioClient();
             String filename = FileUtils.appendUUIDToFilename(bucketName, objectName);
             String baseBucketName = FileUtils.getBaseBucketName(bucketName);
             System.out.println("FileName = " + filename + ", baseBucketName = " + baseBucketName);
@@ -43,9 +45,9 @@ public class MinioStorageService {
         }
     }
 
-    public static InputStream download(String bucketName, String objectName) {
+    @Override
+    public InputStream download(String bucketName, String objectName) {
         try {
-            MinioClient minioClient = getMinioClient();
             return minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
@@ -57,6 +59,7 @@ public class MinioStorageService {
         }
     }
 
+    @Override
     public InputStream download(String filePath) {
         BucketObject bucketObject = FileUtils.extractBucketAndObjectName(filePath);
         return download(bucketObject.getBucketName(),  bucketObject.getObjectName());

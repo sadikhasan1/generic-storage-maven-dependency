@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 public class TestController {
 
     private final ServletContext servletContext;
+    private final StorageService storageService = new StorageService();
 
     public TestController(ServletContext servletContext) {
         this.servletContext = servletContext;
@@ -47,7 +48,7 @@ public class TestController {
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
-        InputStream inputStream = StorageService.download(filePath);
+        InputStream inputStream = storageService.download(filePath);
         if (inputStream == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
@@ -68,7 +69,7 @@ public class TestController {
 
     @GetMapping("/image-manual-response")
     public void getImageAsByteArray(HttpServletResponse response) throws IOException {
-        InputStream in = StorageService.download("bucketname/nested/folder/image.png");
+        InputStream in = storageService.download("bucketname/nested/folder/image.png");
         response.setContentType(MediaType.IMAGE_JPEG_VALUE);
         IOUtils.copy(in, response.getOutputStream());
     }
@@ -77,6 +78,6 @@ public class TestController {
     @PostMapping("/")
     public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
         String bucket = "testsssc";
-        return "redirect:/?filePath=" + StorageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
+        return "redirect:/?filePath=" + storageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
     }
 }

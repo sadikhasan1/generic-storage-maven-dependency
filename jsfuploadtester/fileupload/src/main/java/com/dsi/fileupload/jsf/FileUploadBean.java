@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 @Named
 @ViewScoped
 public class FileUploadBean implements Serializable {
+    private final StorageService storageService = new StorageService();
     private UploadedFile file;
     private String filepath;  // Field to store the uploaded file path
 
@@ -35,7 +36,7 @@ public class FileUploadBean implements Serializable {
     public void upload() {
         if (file != null) {
             try (InputStream inputStream = file.getInputStream()) {
-                filepath = StorageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
+                filepath = storageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
             } catch (IOException e) {
                 System.err.println("Error uploading file: " + file.getFileName());
                 e.printStackTrace();
@@ -51,7 +52,7 @@ public class FileUploadBean implements Serializable {
             ExternalContext externalContext = facesContext.getExternalContext();
             externalContext.responseReset();
 
-            try (InputStream inputStream = StorageService.download(filepath);
+            try (InputStream inputStream = storageService.download(filepath);
                  OutputStream outputStream = externalContext.getResponseOutputStream()) {
 
                 externalContext.setResponseContentType(Files.probeContentType(Paths.get(filepath)));

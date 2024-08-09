@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     implementation 'jakarta.platform:jakarta.jakartaee-api:10.0.0'
-    implementation 'org.glassfish:jakarta.faces:4.1.1' // This should cover jakarta.faces-api
+    implementation 'org.glassfish:jakarta.faces:4.1.1'
     implementation 'org.primefaces:primefaces:14.0.1:jakarta'
     implementation 'org.primefaces.extensions:primefaces-extensions:14.0.1:jakarta'
     implementation 'com.dsi:storage-integration:1.0-SNAPSHOT'
