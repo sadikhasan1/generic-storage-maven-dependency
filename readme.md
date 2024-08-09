@@ -112,6 +112,7 @@ import java.nio.file.Paths;
 @Named
 @ViewScoped
 public class FileUploadBean implements Serializable {
+    private final StorageService storageService = new StorageService();
     private UploadedFile file;
     private String filepath;  // Field to store the uploaded file path
 
@@ -130,7 +131,7 @@ public class FileUploadBean implements Serializable {
     public void upload() {
         if (file != null) {
             try (InputStream inputStream = file.getInputStream()) {
-                filepath = StorageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
+                filepath = storageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
             } catch (IOException e) {
                 System.err.println("Error uploading file: " + file.getFileName());
                 e.printStackTrace();
@@ -146,7 +147,7 @@ public class FileUploadBean implements Serializable {
             ExternalContext externalContext = facesContext.getExternalContext();
             externalContext.responseReset();
 
-            try (InputStream inputStream = StorageService.download(filepath);
+            try (InputStream inputStream = storageService.download(filepath);
                  OutputStream outputStream = externalContext.getResponseOutputStream()) {
 
                 externalContext.setResponseContentType(Files.probeContentType(Paths.get(filepath)));
@@ -211,6 +212,9 @@ public class FileUploadBean implements Serializable {
 package com.example.fileuploadtester.test;
 
 import com.dsi.storage.core.StorageService;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -237,7 +241,8 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
-
+    private final StorageService storageService = new StorageService();
+    
     @GetMapping("/")
     public String index(
             @RequestParam(defaultValue = "") String filePath,
@@ -248,7 +253,7 @@ public class TestController {
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
-        InputStream inputStream = StorageService.download(filePath);
+        InputStream inputStream = storageService.download(filePath);
         if (inputStream == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
@@ -267,10 +272,18 @@ public class TestController {
                 .body(resource);
     }
 
+    @GetMapping("/image-manual-response")
+    public void getImageAsByteArray(HttpServletResponse response) throws IOException {
+        InputStream in = storageService.download("bucketname/nested/folder/image.png");
+        response.setContentType(MediaType.IMAGE_JPEG_VALUE);
+        IOUtils.copy(in, response.getOutputStream());
+    }
+
+
     @PostMapping("/")
-    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
-        String bucket = "just/atest/for/nested";
-        return "redirect:/?filePath=" + StorageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
+    public String handleFileUpload(@RequestParam("file") MultipartFile file) throws IOException {
+        String bucket = "test";
+        return "redirect:/?filePath=" + storageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
     }
 }
 ```
