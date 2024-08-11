@@ -2,9 +2,11 @@ package com.dsi.storage.util;
 
 import com.dsi.storage.dto.BucketObject;
 
-import java.util.UUID;
+/**
+ * Provides utility methods related to bucket operations.
+ */
+public class BucketUtils {
 
-public class FileUtils {
     /**
      * Extracts the base bucket name from a full path.
      * @param path The full path including the bucket and folders.
@@ -23,28 +25,6 @@ public class FileUtils {
         }
 
         return parts[0];
-    }
-
-    /**
-     * Generates a unique file ID and appends it to the nested folder path.
-     * @param fullPath The full path including bucket and nested folders.
-     * @return The new file name with the unique ID.
-     */
-    public static String generateUniqueFileIdWithNestedFolders(String fullPath) {
-        if (fullPath == null || fullPath.trim().isEmpty()) {
-            throw new IllegalArgumentException("The fullPath cannot be null or empty.");
-        }
-
-        String uniqueId = UUID.randomUUID().toString();
-        String nestedFolders = fullPath.contains("/")
-                ? fullPath.substring(fullPath.indexOf('/') + 1)
-                : "";
-
-        String fileName = nestedFolders.isEmpty()
-                ? uniqueId
-                : nestedFolders + "/" + uniqueId;
-
-        return fileName.replaceAll("/+", "/").replaceFirst("^/", "");
     }
 
     /**
@@ -71,30 +51,6 @@ public class FileUtils {
             return new BucketObject(bucketName, objectName);
         } else {
             throw new IllegalArgumentException("File path must contain '/' to separate bucket and object name.");
-        }
-    }
-
-    /**
-     * Validates that none of the provided parameters are null or empty.
-     * @param params The parameters to validate.
-     * @throws IllegalArgumentException If any of the parameters are null or empty.
-     */
-    public static void validateNotEmpty(String... params) throws IllegalArgumentException {
-        StringBuilder errorMessage = new StringBuilder("The following parameters are invalid: ");
-        boolean hasInvalidParams = false;
-
-        for (int i = 0; i < params.length; i++) {
-            if (params[i] == null || params[i].trim().isEmpty()) {
-                if (hasInvalidParams) {
-                    errorMessage.append(", ");
-                }
-                errorMessage.append("Parameter ").append(i + 1);
-                hasInvalidParams = true;
-            }
-        }
-
-        if (hasInvalidParams) {
-            throw new IllegalArgumentException(errorMessage.toString());
         }
     }
 }

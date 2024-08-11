@@ -4,7 +4,9 @@ import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.BucketObject;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
-import com.dsi.storage.util.FileUtils;
+import com.dsi.storage.util.BucketUtils;
+import com.dsi.storage.util.FileNameUtils;
+import com.dsi.storage.util.ValidationUtils;
 import io.minio.*;
 import io.minio.errors.MinioException;
 import org.slf4j.Logger;
@@ -44,7 +46,7 @@ public class MinioStorageService implements StorageClient {
 
     private void validateEnvironmentVariables(String endpoint, String accessKey, String secretKey) {
         try {
-            FileUtils.validateNotEmpty(endpoint, accessKey, secretKey);
+            ValidationUtils.validateNotEmpty(endpoint, accessKey, secretKey);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Environment variables for MinIO configuration are missing or invalid", e);
         }
@@ -77,8 +79,8 @@ public class MinioStorageService implements StorageClient {
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
-            String fileIdWithNestedFolders = FileUtils.generateUniqueFileIdWithNestedFolders(fullPath);
-            String baseBucketName = FileUtils.getBaseBucketName(fullPath);
+            String fileIdWithNestedFolders = FileNameUtils.generateUniqueFileIdWithNestedFolders(fullPath);
+            String baseBucketName = BucketUtils.getBaseBucketName(fullPath);
 
             logger.info("Uploading file with ID {} to bucket '{}'", fileIdWithNestedFolders, baseBucketName);
 
@@ -132,7 +134,7 @@ public class MinioStorageService implements StorageClient {
     @Override
     public FileData download(String fullPathWithFileId) throws StorageException {
         try {
-            BucketObject bucketObject = FileUtils.extractBucketAndObjectName(fullPathWithFileId);
+            BucketObject bucketObject = BucketUtils.extractBucketAndObjectName(fullPathWithFileId);
 
             GetObjectResponse response = minioClient.getObject(
                     GetObjectArgs.builder()
