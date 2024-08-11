@@ -59,11 +59,7 @@ public class FileUploadBean implements Serializable {
             try {
                 FileData fileData = storageService.download(filepath);
                 InputStream inputStream = fileData.inputStream();
-                System.out.println("*************************************************************************");
-                System.out.println("*************************************************************************");
-                System.out.println("*************************************************************************");
-                System.out.println("*************************************************************************");
-                System.out.println(fileData.contentType());
+
                 String fileExtension = fileData.fileExtension();
                 String fileName = Paths.get(filepath).getFileName().toString() + fileExtension;
 
