@@ -1,5 +1,7 @@
 package com.dsi.fileupload.jsf;
 
+import com.dsi.storage.dto.FileData;
+import com.dsi.storage.exception.StorageException;
 import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -36,10 +38,12 @@ public class FileUploadBean implements Serializable {
     public void upload() {
         if (file != null) {
             try (InputStream inputStream = file.getInputStream()) {
-                filepath = storageService.upload("random/for/test", file.getFileName(), inputStream, file.getContentType());
+                filepath = storageService.upload("random/for/test", inputStream, "image/jpeg");
             } catch (IOException e) {
                 System.err.println("Error uploading file: " + file.getFileName());
                 e.printStackTrace();
+            } catch (StorageException e) {
+                throw new RuntimeException(e);
             }
         } else {
             System.out.println("No file selected.");
@@ -52,21 +56,28 @@ public class FileUploadBean implements Serializable {
             ExternalContext externalContext = facesContext.getExternalContext();
             externalContext.responseReset();
 
-            try (InputStream inputStream = storageService.download(filepath);
-                 OutputStream outputStream = externalContext.getResponseOutputStream()) {
+            try {
+                FileData fileData = storageService.download(filepath);
+                InputStream inputStream = fileData.inputStream();
 
-                externalContext.setResponseContentType(Files.probeContentType(Paths.get(filepath)));
-                externalContext.setResponseHeader("Content-Disposition", "attachment; filename=\"" + Paths.get(filepath).getFileName().toString() + "\"");
+                String fileExtension = fileData.fileExtension();
+                String fileName = Paths.get(filepath).getFileName().toString() + fileExtension;
 
+                externalContext.setResponseContentType(fileData.contentType());
+                externalContext.setResponseHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+
+                // Write the file content to the response output stream
+                OutputStream outputStream = externalContext.getResponseOutputStream();
                 byte[] buffer = new byte[1024];
                 int bytesRead;
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     outputStream.write(buffer, 0, bytesRead);
                 }
                 outputStream.flush();
-                facesContext.responseComplete();
 
-            } catch (IOException e) {
+                // Complete the response to prevent JSF from continuing to render the view
+                facesContext.responseComplete();
+            } catch (IOException | StorageException e) {
                 System.err.println("Error downloading file: " + filepath);
                 e.printStackTrace();
             }

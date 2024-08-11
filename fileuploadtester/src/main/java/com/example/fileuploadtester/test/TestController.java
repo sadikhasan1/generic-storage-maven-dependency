@@ -1,6 +1,8 @@
 package com.example.fileuploadtester.test;
 
 import com.dsi.storage.core.StorageService;
+import com.dsi.storage.dto.FileData;
+import com.dsi.storage.exception.StorageException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
@@ -48,14 +50,15 @@ public class TestController {
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
-        InputStream inputStream = storageService.download(filePath);
+        FileData fileData = storageService.download(filePath);
+        InputStream inputStream = fileData.inputStream();
         if (inputStream == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
 
         byte[] bytes = inputStream.readAllBytes();
         InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(bytes));
-        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1) + fileData.fileExtension();
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
@@ -68,16 +71,17 @@ public class TestController {
     }
 
     @GetMapping("/image-manual-response")
-    public void getImageAsByteArray(HttpServletResponse response) throws IOException {
-        InputStream in = storageService.download("bucketname/nested/folder/image.png");
-        response.setContentType(MediaType.IMAGE_JPEG_VALUE);
+    public void getImageAsByteArray(HttpServletResponse response) throws IOException, StorageException {
+        FileData fileData = storageService.download("bucketname/nested/folder/image.png");
+        InputStream in = fileData.inputStream();
+        response.setContentType(fileData.contentType());
         IOUtils.copy(in, response.getOutputStream());
     }
 
 
     @PostMapping("/")
-    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException {
+    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException, StorageException {
         String bucket = "testsssc";
-        return "redirect:/?filePath=" + storageService.upload(bucket, file.getOriginalFilename(), file.getInputStream(), file.getContentType());
+        return "redirect:/?filePath=" + storageService.upload(bucket, file.getInputStream(), file.getContentType());
     }
 }
