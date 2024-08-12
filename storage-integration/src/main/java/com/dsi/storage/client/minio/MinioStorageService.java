@@ -1,4 +1,4 @@
-package com.dsi.storage.minio;
+package com.dsi.storage.client.minio;
 
 import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.StorageLocation;
@@ -16,9 +16,6 @@ import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-
-import static com.dsi.storage.minio.MinioUtils.convertPathToDirectoryBucketString;
-import static com.dsi.storage.minio.MinioUtils.extractBaseBucket;
 
 /**
  * MinioStorageService provides methods for interacting with MinIO for file storage and retrieval.
@@ -50,8 +47,8 @@ public class MinioStorageService implements StorageClient {
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
-            String baseBucket = extractBaseBucket(fullPath);
-            String directoryBucketString = convertPathToDirectoryBucketString(fullPath);
+            String baseBucket = MinioUtils.extractBaseBucket(fullPath);
+            String directoryBucketString = MinioUtils.convertPathToDirectoryBucketString(fullPath);
             String fileId = UUID.randomUUID().toString();
             logger.debug("Base Bucket: {}, Directory Bucket String: {}, Generated File ID: {}", baseBucket, directoryBucketString, fileId);
 

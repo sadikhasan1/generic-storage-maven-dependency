@@ -4,7 +4,7 @@ import java.io.InputStream;
 import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
-import com.dsi.storage.minio.MinioStorageService;
+import com.dsi.storage.client.minio.MinioStorageService;
 
 /**
  * StorageService provides a unified interface for file storage operations.

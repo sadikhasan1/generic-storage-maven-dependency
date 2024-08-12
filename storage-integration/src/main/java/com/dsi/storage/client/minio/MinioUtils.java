@@ -1,8 +1,7 @@
-package com.dsi.storage.minio;
+package com.dsi.storage.client.minio;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MinioUtils {
     // Regular expression for validating MinIO bucket names
