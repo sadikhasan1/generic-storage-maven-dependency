@@ -101,13 +101,13 @@ import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 import org.primefaces.model.file.UploadedFile;
 import com.dsi.storage.core.StorageService;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -155,7 +155,12 @@ public class FileUploadBean implements Serializable {
                 FileData fileData = storageService.download(filepath);
                 InputStream inputStream = fileData.inputStream();
 
-                String fileExtension = fileData.fileExtension();
+                MimeTypes mimeTypes = MimeTypes.getDefaultMimeTypes();
+                MediaType mediaType = MediaType.parse(fileData.contentType());
+                String fileExtension = mimeTypes.forName(mediaType.toString()).getExtension();
+
+                fileExtension = fileExtension != null ? fileExtension : "";
+
                 String fileName = Paths.get(filepath).getFileName().toString() + fileExtension;
 
                 externalContext.setResponseContentType(fileData.contentType());
@@ -175,6 +180,8 @@ public class FileUploadBean implements Serializable {
             } catch (IOException | StorageException e) {
                 System.err.println("Error downloading file: " + filepath);
                 e.printStackTrace();
+            } catch (MimeTypeException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -220,90 +227,93 @@ public class FileUploadBean implements Serializable {
 ### TestController.java
 
 ```java
-package com.dsi.fileupload.jsf;
+package com.example.fileuploadtester.test;
 
+import com.dsi.storage.core.StorageService;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
-import jakarta.faces.context.ExternalContext;
-import jakarta.faces.context.FacesContext;
-import jakarta.faces.view.ViewScoped;
-import jakarta.inject.Named;
-import org.primefaces.model.file.UploadedFile;
-import com.dsi.storage.core.StorageService;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.io.IOUtils;
+import org.apache.tika.mime.MimeTypes;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
-@Named
-@ViewScoped
-public class FileUploadBean implements Serializable {
+
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+
+import java.io.ByteArrayOutputStream;
+
+
+@Controller
+public class TestController {
     private final StorageService storageService = new StorageService();
-    private UploadedFile file;
-    private String filepath;  // Field to store the uploaded file path
 
-    public UploadedFile getFile() {
-        return file;
+    @GetMapping("/")
+    public String index(
+            @RequestParam(defaultValue = "") String filePath,
+            Model model) {
+        model.addAttribute("filePath", filePath);
+        return "test";
     }
 
-    public void setFile(UploadedFile file) {
-        this.file = file;
-    }
-
-    public String getFilepath() {
-        return filepath;
-    }
-
-    public void upload() {
-        if (file != null) {
-            try (InputStream inputStream = file.getInputStream()) {
-                filepath = storageService.upload("random/for/test", inputStream, "image/jpeg");
-            } catch (IOException e) {
-                System.err.println("Error uploading file: " + file.getFileName());
-                e.printStackTrace();
-            } catch (StorageException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            System.out.println("No file selected.");
+    @GetMapping("/download")
+    public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) throws Exception {
+        FileData fileData = storageService.download(filePath);
+        InputStream inputStream = fileData.inputStream();
+        if (inputStream == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
+
+        byte[] bytes = inputStream.readAllBytes();
+        InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(bytes));
+        MimeTypes mimeTypes = MimeTypes.getDefaultMimeTypes();
+        MediaType mediaType = MediaType.parseMediaType(fileData.contentType());
+        String fileExtension = mimeTypes.forName(mediaType.toString()).getExtension();
+
+        fileExtension = fileExtension != null ? fileExtension : "";
+
+
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1) + fileExtension;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(bytes.length)
+                .body(resource);
     }
 
-    public void download() {
-        if (filepath != null) {
-            FacesContext facesContext = FacesContext.getCurrentInstance();
-            ExternalContext externalContext = facesContext.getExternalContext();
-            externalContext.responseReset();
+    @GetMapping("/image-manual-response")
+    public void getImageAsByteArray(HttpServletResponse response) throws IOException, StorageException {
+        FileData fileData = storageService.download("bucketname/nested/folder/image.png");
+        InputStream in = fileData.inputStream();
+        response.setContentType(fileData.contentType());
+        IOUtils.copy(in, response.getOutputStream());
+    }
 
-            try {
-                FileData fileData = storageService.download(filepath);
-                InputStream inputStream = fileData.inputStream();
 
-                String fileExtension = fileData.fileExtension();
-                String fileName = Paths.get(filepath).getFileName().toString() + fileExtension;
-
-                externalContext.setResponseContentType(fileData.contentType());
-                externalContext.setResponseHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
-
-                // Write the file content to the response output stream
-                OutputStream outputStream = externalContext.getResponseOutputStream();
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-                outputStream.flush();
-
-                // Complete the response to prevent JSF from continuing to render the view
-                facesContext.responseComplete();
-            } catch (IOException | StorageException e) {
-                System.err.println("Error downloading file: " + filepath);
-                e.printStackTrace();
-            }
-        }
+    @PostMapping("/")
+    public String handleFileUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) throws IOException, StorageException {
+        String bucket = "testsssc";
+        return "redirect:/?filePath=" + storageService.upload(bucket, file.getInputStream(), file.getContentType());
     }
 }
 ```
