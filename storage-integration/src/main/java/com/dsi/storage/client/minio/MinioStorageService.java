@@ -47,8 +47,8 @@ public class MinioStorageService implements StorageClient {
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
-            String baseBucket = MinioUtils.extractBaseBucket(fullPath);
-            String directoryBucketString = MinioUtils.convertPathToDirectoryBucketString(fullPath);
+            String baseBucket = FilePathUtil.extractBaseBucket(fullPath);
+            String directoryBucketString = FilePathUtil.convertPathToDirectoryBucketString(fullPath);
             String fileId = UUID.randomUUID().toString();
             logger.debug("Base Bucket: {}, Directory Bucket String: {}, Generated File ID: {}", baseBucket, directoryBucketString, fileId);
 
@@ -66,8 +66,9 @@ public class MinioStorageService implements StorageClient {
                             .build()
             );
 
-            logger.debug("File uploaded successfully: {}", baseBucket + "/" + directoryBucketString + "/" + fileId);
-            return baseBucket + "/" + directoryBucketString + "/" + fileId;
+            String filePath = baseBucket + "/" + directoryBucketString + "/" + fileId;
+            logger.info("File uploaded successfully: {}", filePath);
+            return filePath;
         } catch (MinioException | IOException | NoSuchAlgorithmException | InvalidKeyException e) {
             logger.error("Failed to upload file to MinIO: {}", e.getMessage());
             throw new StorageException("Failed to upload file to MinIO", e);
@@ -90,8 +91,7 @@ public class MinioStorageService implements StorageClient {
     }
 
     private static String getContentType(MinioClient minioClient, StorageLocation storageLocation)
-            throws ServerException, InsufficientDataException, ErrorResponseException, IOException,
-            NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+            throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
         StatObjectResponse statObject = minioClient.statObject(StatObjectArgs.builder()
                 .bucket(storageLocation.bucketName())
                 .object(storageLocation.objectName())
@@ -101,8 +101,7 @@ public class MinioStorageService implements StorageClient {
     }
 
     private static GetObjectResponse getObjectResponse(MinioClient minioClient, StorageLocation storageLocation)
-            throws ServerException, InsufficientDataException, ErrorResponseException, IOException,
-            NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+            throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
         return minioClient.getObject(GetObjectArgs.builder()
                 .bucket(storageLocation.bucketName())
                 .object(storageLocation.objectName())
