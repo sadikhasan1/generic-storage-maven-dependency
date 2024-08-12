@@ -22,12 +22,10 @@ public class StorageService {
     public StorageService() {
         String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
 
-        if (serviceType != null && serviceType.equalsIgnoreCase("minio")) {
-            this.storageClient = new MinioStorageService();
-        } else {
-            // Throw exception for unsupported service types
-            throw new IllegalStateException("Unsupported storage environment: " + serviceType);
-        }
+        this.storageClient = switch (serviceType.toLowerCase()) {
+            case "minio" -> new MinioStorageService();
+            default -> throw new IllegalStateException("Unsupported storage environment: " + serviceType);
+        };
     }
 
     /**

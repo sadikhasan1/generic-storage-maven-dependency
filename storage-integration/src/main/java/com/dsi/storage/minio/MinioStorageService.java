@@ -1,18 +1,24 @@
 package com.dsi.storage.minio;
 
 import com.dsi.storage.client.StorageClient;
-import com.dsi.storage.dto.BucketObject;
+import com.dsi.storage.dto.StorageLocation;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
-import com.dsi.storage.util.BucketUtils;
-import com.dsi.storage.util.FileNameUtils;
+import com.dsi.storage.util.FilePathUtil;
+import com.dsi.storage.util.ValidationUtils;
 import io.minio.*;
-import io.minio.errors.MinioException;
+import io.minio.errors.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
+
+import static com.dsi.storage.minio.MinioUtils.convertPathToDirectoryBucketString;
+import static com.dsi.storage.minio.MinioUtils.extractBaseBucket;
 
 /**
  * MinioStorageService provides methods for interacting with MinIO for file storage and retrieval.
@@ -20,80 +26,90 @@ import java.io.IOException;
  * Example: "my-bucket/folder1/folder2/6cbd360f-df93-48eb-901b-87e97a5ddb8e"
  */
 public class MinioStorageService implements StorageClient {
-    private static final Logger logger = LoggerFactory.getLogger(MinioStorageService.class);
+    private static final String endpoint = System.getenv("STORAGE_ENDPOINT");
+    private static final String accessKey = System.getenv("STORAGE_ACCESS_KEY");
+    private static final String secretKey = System.getenv("STORAGE_SECRET_KEY");
+    private static final long partSize = (System.getenv("STORAGE_PART_SIZE") != null)
+            ? Long.parseLong(System.getenv("STORAGE_PART_SIZE"))
+            : 10485760L; // 10 MB default size
 
     private final MinioClient minioClient;
-    private final long partSize;
+    private static final Logger logger = LoggerFactory.getLogger(MinioStorageService.class);
 
     /**
      * Constructs a MinioStorageService instance using environment variables for MinIO configuration.
      */
     public MinioStorageService() {
-        this.minioClient = MinioClientFactory.createMinioClient();
-        this.partSize = MinioClientFactory.getUploadPartSize();
+        ValidationUtils.validateNotEmpty(endpoint, accessKey, secretKey);
+        this.minioClient = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
     }
-
-
 
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
-            String fileIdWithNestedFolders = FileNameUtils.generateUniqueFileIdWithNestedFolders(fullPath);
-            String baseBucketName = BucketUtils.getBaseBucketName(fullPath);
+            String baseBucket = extractBaseBucket(fullPath);
+            String directoryBucketString = convertPathToDirectoryBucketString(fullPath);
+            String fileId = UUID.randomUUID().toString();
+            logger.debug("Base Bucket: {}, Directory Bucket String: {}, Generated File ID: {}", baseBucket, directoryBucketString, fileId);
 
-            logger.info("Uploading file with ID {} to bucket '{}'", fileIdWithNestedFolders, baseBucketName);
-
-            MinioUtils.ensureBucketExists(minioClient, baseBucketName);
+            if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(baseBucket).build())) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(baseBucket).build());
+                logger.debug("Bucket '{}' created successfully.", baseBucket);
+            }
 
             minioClient.putObject(
                     PutObjectArgs.builder()
-                            .bucket(baseBucketName)
-                            .object(fileIdWithNestedFolders)
+                            .bucket(baseBucket)
+                            .object(directoryBucketString + "/" + fileId)
                             .stream(data, -1, partSize) // -1 for unknown size
                             .contentType(contentType)
                             .build()
             );
 
-            logger.info("File uploaded successfully: {}", fileIdWithNestedFolders);
-            return baseBucketName + "/" + fileIdWithNestedFolders;
-        } catch (MinioException e) {
-            throw MinioExceptions.handleMinioException("upload", e);
-        } catch (IOException e) {
-            throw MinioExceptions.handleIOException("upload", e);
-        } catch (Exception e) {
-            throw MinioExceptions.handleUnexpectedException("upload", e);
+            logger.debug("File uploaded successfully: {}", baseBucket + "/" + directoryBucketString + "/" + fileId);
+            return baseBucket + "/" + directoryBucketString + "/" + fileId;
+        } catch (MinioException | IOException | NoSuchAlgorithmException | InvalidKeyException e) {
+            logger.error("Failed to upload file to MinIO: {}", e.getMessage());
+            throw new StorageException("Failed to upload file to MinIO", e);
         }
     }
-
-
 
     @Override
     public FileData download(String fullPathWithFileId) throws StorageException {
         try {
-            // Extract bucket and object name
-            BucketObject bucketObject = BucketUtils.extractBucketAndObjectName(fullPathWithFileId);
+            StorageLocation storageLocation = FilePathUtil.extractBucketAndObjectName(fullPathWithFileId);
+            String contentType = getContentType(minioClient, storageLocation);
+            GetObjectResponse response = getObjectResponse(minioClient, storageLocation);
 
-            // Retrieve the content type and object response
-            String contentType = MinioUtils.getContentType(minioClient, bucketObject);
-            GetObjectResponse response = MinioUtils.getObjectResponse(minioClient, bucketObject);
-
-            // Log the download success
             logger.info("File downloaded successfully: {}", fullPathWithFileId);
-
-            // Return the FileData object without closing the InputStream
             return new FileData(response, contentType);
-        } catch (MinioException e) {
-            throw MinioExceptions.handleMinioException("download", e);
-        } catch (IOException e) {
-            throw MinioExceptions.handleIOException("download", e);
-        } catch (Exception e) {
-            throw MinioExceptions.handleUnexpectedException("download", e);
+        } catch (MinioException | IOException | NoSuchAlgorithmException | InvalidKeyException e) {
+            logger.error("Failed to download file from MinIO: {}", e.getMessage());
+            throw new StorageException("Failed to download file from MinIO", e);
         }
     }
 
+    private static String getContentType(MinioClient minioClient, StorageLocation storageLocation)
+            throws ServerException, InsufficientDataException, ErrorResponseException, IOException,
+            NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+        StatObjectResponse statObject = minioClient.statObject(StatObjectArgs.builder()
+                .bucket(storageLocation.bucketName())
+                .object(storageLocation.objectName())
+                .build()
+        );
+        return statObject.contentType();
+    }
 
-
-
-
-
+    private static GetObjectResponse getObjectResponse(MinioClient minioClient, StorageLocation storageLocation)
+            throws ServerException, InsufficientDataException, ErrorResponseException, IOException,
+            NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+        return minioClient.getObject(GetObjectArgs.builder()
+                .bucket(storageLocation.bucketName())
+                .object(storageLocation.objectName())
+                .build()
+        );
+    }
 }

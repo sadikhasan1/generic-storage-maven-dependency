@@ -6,13 +6,13 @@ import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 import org.primefaces.model.file.UploadedFile;
 import com.dsi.storage.core.StorageService;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -60,7 +60,14 @@ public class FileUploadBean implements Serializable {
                 FileData fileData = storageService.download(filepath);
                 InputStream inputStream = fileData.inputStream();
 
-                String fileExtension = fileData.fileExtension();
+
+
+                MimeTypes mimeTypes = MimeTypes.getDefaultMimeTypes();
+                MediaType mediaType = MediaType.parse(fileData.contentType());
+                String fileExtension = mimeTypes.forName(mediaType.toString()).getExtension();
+
+                fileExtension = fileExtension != null ? fileExtension : "";
+
                 String fileName = Paths.get(filepath).getFileName().toString() + fileExtension;
 
                 externalContext.setResponseContentType(fileData.contentType());
@@ -80,6 +87,8 @@ public class FileUploadBean implements Serializable {
             } catch (IOException | StorageException e) {
                 System.err.println("Error downloading file: " + filepath);
                 e.printStackTrace();
+            } catch (MimeTypeException e) {
+                throw new RuntimeException(e);
             }
         }
     }

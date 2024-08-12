@@ -6,6 +6,7 @@ import com.dsi.storage.exception.StorageException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
+import org.apache.tika.mime.MimeTypes;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -32,13 +33,7 @@ import java.io.ByteArrayOutputStream;
 
 @Controller
 public class TestController {
-
-    private final ServletContext servletContext;
     private final StorageService storageService = new StorageService();
-
-    public TestController(ServletContext servletContext) {
-        this.servletContext = servletContext;
-    }
 
     @GetMapping("/")
     public String index(
@@ -58,7 +53,14 @@ public class TestController {
 
         byte[] bytes = inputStream.readAllBytes();
         InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(bytes));
-        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1) + fileData.fileExtension();
+        MimeTypes mimeTypes = MimeTypes.getDefaultMimeTypes();
+        MediaType mediaType = MediaType.parseMediaType(fileData.contentType());
+        String fileExtension = mimeTypes.forName(mediaType.toString()).getExtension();
+
+        fileExtension = fileExtension != null ? fileExtension : "";
+
+
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1) + fileExtension;
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");

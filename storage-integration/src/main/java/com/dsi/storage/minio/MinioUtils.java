@@ -1,58 +1,96 @@
 package com.dsi.storage.minio;
 
-import com.dsi.storage.dto.BucketObject;
-import com.dsi.storage.exception.StorageException;
-import io.minio.*;
-import io.minio.errors.MinioException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class MinioUtils {
-    private static final Logger logger = LoggerFactory.getLogger(MinioUtils.class);
+    // Regular expression for validating MinIO bucket names
+    // - Bucket names must consist of lowercase letters, numbers, hyphens, and dots.
+    // - Must be between 3 and 63 characters long.
+    // - Must start and end with a lowercase letter or number.
+    // - Cannot contain two adjacent dots or a dot adjacent to a hyphen.
+    // - Cannot be formatted as an IP address.
+    // - Cannot start with the prefix 'xn--'.
+    // - Cannot end with the suffix '-s3alias'.
+    private static final String BUCKET_NAME_REGEX = "^(?!xn--)(?!.*\\.-)(?!.*--)(?!.*\\.\\.)[a-z0-9](?:[a-z0-9\\-]*[a-z0-9])?$";
+    private static final int MIN_BUCKET_NAME_LENGTH = 3;
+    private static final int MAX_BUCKET_NAME_LENGTH = 63;
+    private static final String RESERVED_SUFFIX = "-s3alias";
 
-    static void ensureBucketExists(MinioClient minioClient, String baseBucketName) throws StorageException {
-        try {
-            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(baseBucketName).build());
-            if (!bucketExists) {
-                // Create the bucket if it doesn't exist
-                minioClient.makeBucket(MakeBucketArgs.builder().bucket(baseBucketName).build());
-                logger.info("Bucket '{}' created successfully.", baseBucketName);
-            }
-        } catch (MinioException e) {
-            throw MinioExceptions.handleMinioException("ensureBucketExists", e);
-        } catch (InvalidKeyException e) {
-            logger.error("Invalid key while ensuring bucket existence: {}", e.getMessage());
-            throw new StorageException("Invalid key while ensuring bucket existence", e);
-        } catch (NoSuchAlgorithmException e) {
-            logger.error("No such algorithm while ensuring bucket existence: {}", e.getMessage());
-            throw new StorageException("No such algorithm while ensuring bucket existence", e);
-        } catch (IOException e) {
-            logger.error("IO error while ensuring bucket existence: {}", e.getMessage());
-            throw new StorageException("IO error while ensuring bucket existence", e);
-        } catch (Exception e) {
-            throw MinioExceptions.handleUnexpectedException("ensureBucketExists", e);
+    // Extracts the base bucket from a full path and validates it
+    static String extractBaseBucket(String fullPath) throws IllegalArgumentException {
+        if (fullPath == null || fullPath.isEmpty()) {
+            throw new IllegalArgumentException("Full path cannot be null or empty");
         }
+
+        String[] parts = fullPath.split("/", 2);
+        if (parts.length < 1) {
+            throw new IllegalArgumentException("Invalid path format");
+        }
+
+        String bucketName = parts[0].trim();
+
+        if (!isValidBucketName(bucketName)) {
+            throw new IllegalArgumentException("Invalid bucket name: " + bucketName);
+        }
+
+        return bucketName;
     }
 
-    static String getContentType(MinioClient minioClient, BucketObject bucketObject) throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
-        StatObjectResponse statObject = minioClient.statObject(StatObjectArgs.builder()
-                .bucket(bucketObject.bucketName())
-                .object(bucketObject.objectName())
-                .build()
-        );
-        return statObject.contentType();
+    // Converts a path to a valid directory bucket string and validates each directory
+    static String convertPathToDirectoryBucketString(String path) throws IllegalArgumentException {
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("Path cannot be null or empty");
+        }
+
+        // Normalize the path: trim, replace multiple slashes with a single slash, replace spaces with hyphens
+        String normalizedPath = path.trim()
+                .replaceAll("/+", "/") // Replace multiple slashes with a single slash
+                .replaceAll(" ", "-"); // Replace spaces with hyphens
+
+        // Remove trailing slash if present
+        if (normalizedPath.endsWith("/")) {
+            normalizedPath = normalizedPath.substring(0, normalizedPath.length() - 1);
+        }
+
+        // Extract and validate the base bucket
+        String baseBucket = extractBaseBucket(normalizedPath);
+
+        // Extract directories part
+        String directoriesPath = normalizedPath.substring(baseBucket.length()).replaceFirst("^/", "");
+        if (directoriesPath.isEmpty()) {
+            return ""; // No directories
+        }
+
+        String[] directories = directoriesPath.split("/");
+        List<String> validBuckets = new ArrayList<>();
+
+        for (String dir : directories) {
+            if (!dir.isEmpty() && isValidBucketName(dir)) {
+                validBuckets.add(dir);
+            } else if (!dir.isEmpty()) {
+                throw new IllegalArgumentException("Invalid directory bucket name: " + dir);
+            }
+        }
+
+        return String.join("/", validBuckets);
     }
 
-    static GetObjectResponse getObjectResponse(MinioClient minioClient, BucketObject bucketObject) throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
-        return minioClient.getObject(GetObjectArgs.builder()
-                .bucket(bucketObject.bucketName())
-                .object(bucketObject.objectName())
-                .build()
-        );
+    // Validates a bucket name according to MinIO naming rules
+    private static boolean isValidBucketName(String bucketName) {
+        if (bucketName.length() < MIN_BUCKET_NAME_LENGTH || bucketName.length() > MAX_BUCKET_NAME_LENGTH) {
+            return false;
+        }
+        if (!bucketName.matches(BUCKET_NAME_REGEX)) {
+            return false;
+        }
+        if (bucketName.endsWith(RESERVED_SUFFIX)) {
+            return false;
+        }
+        if (bucketName.matches("^\\d{1,3}(\\.\\d{1,3}){3}$")) {
+            return false; // Check for IP address format
+        }
+        return true;
     }
-
 }
