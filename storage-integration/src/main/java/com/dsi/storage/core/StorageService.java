@@ -30,10 +30,14 @@ public class StorageService {
                 ? Long.parseLong(System.getenv("STORAGE_PART_SIZE"))
                 : 10485760L; // 10 MB default size
 
-        this.storageClient = switch (serviceType.toLowerCase()) {
-            case "minio" -> initMinioStorage(endpoint, accessKey, secretKey, partSize);
-            default -> throw new IllegalStateException("Unsupported storage environment: " + serviceType);
-        };
+        switch (serviceType.toLowerCase()) {
+            case "minio":
+                ValidationUtils.emptyCheckOnRequiredFields(endpoint, accessKey, secretKey);
+                this.storageClient = new MinioStorageService(endpoint, accessKey, secretKey, partSize);
+                break;
+            default:
+                throw new IllegalStateException("Unsupported storage environment: " + serviceType);
+        }
     }
 
     /**
@@ -66,15 +70,5 @@ public class StorageService {
      */
     public FileData download(String fullPathWithFileId) throws StorageException {
         return storageClient.download(fullPathWithFileId);
-    }
-
-    private StorageClient initMinioStorage(String endpoint, String accessKey, String secretKey, long partSize) {
-        // Checking if the required fields are not empty.
-        ValidationUtils.emptyCheckOnRequiredFields(endpoint, accessKey, secretKey);
-        MinioClient minioClient = MinioClient.builder()
-                .endpoint(endpoint)
-                .credentials(accessKey, secretKey)
-                .build();
-        return new MinioStorageService(minioClient, partSize);
     }
 }
