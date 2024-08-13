@@ -38,8 +38,11 @@ public class MinioStorageService implements StorageClient {
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
             String[] parts = PathUtil.splitPathForUpload(fullPath);
-            String baseBucket = parts[0];
-            String directoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
+            String[] extractedParts = extractPathComponents(parts);
+
+            String baseBucket = extractedParts[0];
+            String directoryBucketPath = extractedParts[1];
+
             String fileId = UUID.randomUUID().toString();
             logger.debug("Base Bucket: {}, Directory Bucket Path: {}, Generated File ID: {}", baseBucket, directoryBucketPath, fileId);
 
@@ -77,30 +80,27 @@ public class MinioStorageService implements StorageClient {
     public FileData download(String fullPathWithFileId) throws StorageException {
         try {
             String[] parts = PathUtil.splitPathForDownload(fullPathWithFileId);
-            String baseBucket = parts[0];
-            String fileIdWithDirectoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
 
-            if (baseBucket.isEmpty() || fileIdWithDirectoryBucketPath.isEmpty()) {
+            String[] extractedParts = extractPathComponents(parts);
+
+            String baseBucket = extractedParts[0];
+            String fileIdWithDirectoryBucketPath = extractedParts[1];
+
+            if (fileIdWithDirectoryBucketPath.isEmpty()) {
                 throw new IllegalArgumentException("The file path must contain a valid bucket name and object name.");
             }
 
-            String contentType = getContentType(minioClient, baseBucket, fileIdWithDirectoryBucketPath);
             GetObjectResponse response = getObjectResponse(minioClient, baseBucket, fileIdWithDirectoryBucketPath);
+            String contentType = response.headers().get("Content-Type");
+            if (contentType == null) {
+                throw new StorageException("Failed to retrieve content type.");
+            }
+
             return new FileData(response, contentType);
         } catch (MinioException | IOException | NoSuchAlgorithmException | InvalidKeyException e) {
             logger.error("Failed to download file from MinIO", e);
             throw new StorageException("Failed to download file from MinIO", e);
         }
-    }
-
-    private static String getContentType(MinioClient minioClient, String baseBucket, String fileIdWithDirectoryBucketPath)
-            throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
-        StatObjectResponse statObject = minioClient.statObject(StatObjectArgs.builder()
-                .bucket(baseBucket)
-                .object(fileIdWithDirectoryBucketPath)
-                .build()
-        );
-        return statObject.contentType();
     }
 
     private static GetObjectResponse getObjectResponse(MinioClient minioClient, String baseBucket, String fileIdWithDirectoryBucketPath)
@@ -110,5 +110,16 @@ public class MinioStorageService implements StorageClient {
                 .object(fileIdWithDirectoryBucketPath)
                 .build()
         );
+    }
+
+    private static String[] extractPathComponents(String[] parts) throws StorageException {
+        if (parts.length == 0) {
+            throw new StorageException("Invalid path: " + String.join("/", parts));
+        }
+
+        String baseBucket = parts[0];
+        String directoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
+
+        return new String[] { baseBucket, directoryBucketPath };
     }
 }
