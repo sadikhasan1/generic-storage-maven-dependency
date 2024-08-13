@@ -3,7 +3,7 @@ package com.dsi.storage.client.minio;
 import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
-import com.dsi.storage.util.ValidationUtils;
+import com.dsi.storage.util.PathUtil;
 import io.minio.*;
 import io.minio.errors.*;
 import org.slf4j.Logger;
@@ -36,21 +36,8 @@ public class MinioStorageService implements StorageClient {
 
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
-        if (ValidationUtils.isNullOrEmpty(fullPath) || data == null || ValidationUtils.isNullOrEmpty(contentType)) {
-            logger.error("Upload Path, data stream, or content type cannot be null or empty");
-            throw new StorageException("Upload Path, data stream, or content type cannot be null or empty");
-        }
-
         try {
-            fullPath = fullPath.trim().replaceAll("/+", "/")  // Replace multiple slashes with a single slash
-                    .replaceAll(" ", "-")    // Replace spaces with hyphens
-                    .replaceAll("^/|/$", ""); // Remove leading and trailing slashes
-
-            String[] parts = fullPath.split("/");
-            // Validate each segment of the path
-            if (!ValidationUtils.isValidPath(parts)) {
-                throw new IllegalArgumentException("Invalid directory path: " + fullPath);
-            }
+            String[] parts = PathUtil.splitPathForUpload(fullPath);
             String baseBucket = parts[0];
             String directoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
             String fileId = UUID.randomUUID().toString();
@@ -76,7 +63,7 @@ public class MinioStorageService implements StorageClient {
             );
 
             // Constructing the full file path
-            String filePath = directoryBucketPath.isEmpty() ? baseBucket + "/" + fileId : baseBucket + "/" + objectPath;
+            String filePath = baseBucket + "/" + objectPath;
 
             logger.info("File uploaded successfully: {}", filePath);
             return filePath;
@@ -88,16 +75,8 @@ public class MinioStorageService implements StorageClient {
 
     @Override
     public FileData download(String fullPathWithFileId) throws StorageException {
-        if (ValidationUtils.isNullOrEmpty(fullPathWithFileId)) {
-            logger.error("Download path cannot be null or empty");
-            throw new StorageException("Download path cannot be null or empty");
-        }
-
         try {
-            fullPathWithFileId = fullPathWithFileId.trim().replaceAll("/+", "/")  // Replace multiple slashes with a single slash
-                    .replaceAll("^/|/$", ""); // Remove leading and trailing slashes
-
-            String[] parts = fullPathWithFileId.split("/");
+            String[] parts = PathUtil.splitPathForDownload(fullPathWithFileId);
             String baseBucket = parts[0];
             String fileIdWithDirectoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
 

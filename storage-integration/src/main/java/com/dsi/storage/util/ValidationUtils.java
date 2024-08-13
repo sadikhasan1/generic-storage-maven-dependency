@@ -7,6 +7,12 @@ import java.util.Arrays;
  */
 public class ValidationUtils {
     // Regular expression for validating MinIO bucket names:
+    // 1. (?!xn--) - Ensures the bucket name does not start with the prefix 'xn--'.
+    // 2. (?!.*\\.-) - Ensures there is no '.' followed by a '-' anywhere in the name.
+    // 3. (?!.*--) - Ensures there are no consecutive hyphens '--' anywhere in the name.
+    // 4. (?!.*\\.\\.) - Ensures there are no consecutive dots '..' anywhere in the name.
+    // 5. [a-z0-9] - The bucket name must start with a lowercase letter or digit.
+    // 6. (?:[a-z0-9\\-]*[a-z0-9])? - The rest of the name can contain lowercase letters, digits, or hyphens, but must end with a lowercase letter or digit.
     private static final String MINIO_BUCKET_NAME_REGEX = "^(?!xn--)(?!.*\\.-)(?!.*--)(?!.*\\.\\.)[a-z0-9](?:[a-z0-9\\-]*[a-z0-9])?$";
     private static final int MIN_BUCKET_NAME_LENGTH = 3;
     private static final int MAX_BUCKET_NAME_LENGTH = 63;

@@ -7,6 +7,8 @@ import com.dsi.storage.exception.StorageException;
 import com.dsi.storage.client.minio.MinioStorageService;
 import com.dsi.storage.util.ValidationUtils;
 import io.minio.MinioClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * StorageService provides a unified interface for file storage operations.
@@ -15,6 +17,7 @@ import io.minio.MinioClient;
  */
 public class StorageService {
     private final StorageClient storageClient;
+    private static final Logger logger = LoggerFactory.getLogger(MinioStorageService.class);
 
     /**
      * Constructs a StorageService instance based on the environment configuration.
@@ -55,6 +58,10 @@ public class StorageService {
      * @throws StorageException If an error occurs during file upload.
      */
     public String upload(String fullPath, InputStream inputStream, String contentType) throws StorageException {
+        if (ValidationUtils.isNullOrEmpty(fullPath) || inputStream == null || ValidationUtils.isNullOrEmpty(contentType)) {
+            logger.error("Upload Path, data stream, or content type cannot be null or empty");
+            throw new StorageException("Upload Path, data stream, or content type cannot be null or empty");
+        }
         return storageClient.upload(fullPath, inputStream, contentType);
     }
 
@@ -69,6 +76,11 @@ public class StorageService {
      * @throws StorageException If an error occurs during file download.
      */
     public FileData download(String fullPathWithFileId) throws StorageException {
+        if (ValidationUtils.isNullOrEmpty(fullPathWithFileId)) {
+            logger.error("Download path cannot be null or empty");
+            throw new StorageException("Download path cannot be null or empty");
+        }
+
         return storageClient.download(fullPathWithFileId);
     }
 }
