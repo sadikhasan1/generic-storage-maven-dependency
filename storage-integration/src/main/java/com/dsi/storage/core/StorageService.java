@@ -5,6 +5,8 @@ import com.dsi.storage.client.StorageClient;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
 import com.dsi.storage.client.minio.MinioStorageService;
+import com.dsi.storage.util.ValidationUtils;
+import io.minio.MinioClient;
 
 /**
  * StorageService provides a unified interface for file storage operations.
@@ -21,9 +23,15 @@ public class StorageService {
      */
     public StorageService() {
         String serviceType = System.getenv("STORAGE_SERVICE_TYPE");
+        String endpoint = System.getenv("STORAGE_ENDPOINT");
+        String accessKey = System.getenv("STORAGE_ACCESS_KEY");
+        String secretKey = System.getenv("STORAGE_SECRET_KEY");
+        long partSize = (System.getenv("STORAGE_PART_SIZE") != null)
+                ? Long.parseLong(System.getenv("STORAGE_PART_SIZE"))
+                : 10485760L; // 10 MB default size
 
         this.storageClient = switch (serviceType.toLowerCase()) {
-            case "minio" -> new MinioStorageService();
+            case "minio" -> initMinioStorage(endpoint, accessKey, secretKey, partSize);
             default -> throw new IllegalStateException("Unsupported storage environment: " + serviceType);
         };
     }
@@ -58,5 +66,15 @@ public class StorageService {
      */
     public FileData download(String fullPathWithFileId) throws StorageException {
         return storageClient.download(fullPathWithFileId);
+    }
+
+    private StorageClient initMinioStorage(String endpoint, String accessKey, String secretKey, long partSize) {
+        // Checking if the required fields are not empty.
+        ValidationUtils.emptyCheckOnRequiredFields(endpoint, accessKey, secretKey);
+        MinioClient minioClient = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
+        return new MinioStorageService(minioClient, partSize);
     }
 }

@@ -1,9 +1,8 @@
 package com.dsi.storage.util;
 
-import com.dsi.storage.dto.StorageLocation;
+import com.dsi.storage.dto.BucketPath;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 /**
  * Provides utility methods related to bucket, directory, filePath operations.
@@ -17,73 +16,99 @@ public class FilePathUtil {
     // 5. [a-z0-9] - The bucket name must start with a lowercase letter or digit.
     // 6. (?:[a-z0-9\\-]*[a-z0-9])? - The rest of the name can contain lowercase letters, digits, or hyphens, but must end with a lowercase letter or digit.
     private static final String MINIO_BUCKET_NAME_REGEX = "^(?!xn--)(?!.*\\.-)(?!.*--)(?!.*\\.\\.)[a-z0-9](?:[a-z0-9\\-]*[a-z0-9])?$";
-
     private static final int MIN_BUCKET_NAME_LENGTH = 3;
     private static final int MAX_BUCKET_NAME_LENGTH = 63;
     private static final String RESERVED_SUFFIX = "-s3alias";
-
     private static final String STORAGE_SERVICE_TYPE = System.getenv("STORAGE_SERVICE_TYPE");
 
-    // Extracts the base bucket from a full path and validates it
-    public static String extractBaseBucket(String fullPath) throws IllegalArgumentException {
-        if (fullPath == null || fullPath.isEmpty()) {
-            throw new IllegalArgumentException("Full path cannot be null or empty");
+    /**
+     * Converts a path to a valid directory bucket string and validates each directory.
+     * @param path The path to convert.
+     * @return A BucketPath object containing the base bucket and the directories path.
+     * @throws IllegalArgumentException If the path is null, empty, or contains invalid directory names.
+     */
+    public static BucketPath splitPathToBaseBucketAndRemainingWithValidation(String path) {
+        emptyCheck(path);
+
+        // Normalize the path
+        String normalizedPath = normalizePath(path);
+
+        // Handle case where there is no '/'
+        if (!normalizedPath.contains("/")) {
+            String baseBucket = normalizedPath.trim();
+            if (baseBucket.isEmpty() || !isValidBucketName(baseBucket)) {
+                throw new IllegalArgumentException("Invalid base bucket name: " + baseBucket);
+            }
+            return new BucketPath(baseBucket, "");
         }
 
-        String[] parts = fullPath.split("/", 2);
-        if (parts.length < 1) {
-            throw new IllegalArgumentException("Invalid path format");
+        // Validate the entire normalized path
+        if (!isValidPath(normalizedPath)) {
+            throw new IllegalArgumentException("Invalid directory path: " + normalizedPath);
         }
 
-        String bucketName = parts[0].trim();
+        // Split normalized path into base bucket and directory path
+        int firstSlashIndex = normalizedPath.indexOf('/');
+        String baseBucket = normalizedPath.substring(0, firstSlashIndex).trim();
+        String directoryPath = normalizedPath.substring(firstSlashIndex + 1).trim(); // Handle empty directoryPath
 
-        if (!isValidBucketName(bucketName)) {
-            throw new IllegalArgumentException("Invalid bucket name: " + bucketName);
-        }
-
-        return bucketName;
+        // Return the valid BucketPath
+        return new BucketPath(baseBucket, directoryPath);
     }
 
-    // Converts a path to a valid directory bucket string and validates each directory
-    public static String convertPathToDirectoryBucketString(String path) throws IllegalArgumentException {
+    /**
+     * Extracts the bucket name and object name from the file path.
+     * @param filePath The full file path including bucket and object name.
+     * @return A BucketPath containing the bucket name and object name.
+     * @throws IllegalArgumentException If the file path does not contain a valid bucket name or object name.
+     */
+    public static BucketPath splitFilePathToBaseBucketAndRemaining(String filePath) {
+        emptyCheck(filePath);
+
+        int firstSlashIndex = filePath.indexOf('/');
+        if (firstSlashIndex == -1) {
+            throw new IllegalArgumentException("File path must contain '/' to separate bucket and object name.");
+        }
+
+        String bucketName = filePath.substring(0, firstSlashIndex).trim();
+        String objectName = filePath.substring(firstSlashIndex + 1).trim();
+
+        if (bucketName.isEmpty() || objectName.isEmpty()) {
+            throw new IllegalArgumentException("The file path must contain a valid bucket name and object name.");
+        }
+
+        return new BucketPath(bucketName, objectName);
+    }
+
+    /**
+     * Validates the provided path for null or empty values.
+     * @param path The path to validate.
+     * @throws IllegalArgumentException If the path is null or empty.
+     */
+    private static void emptyCheck(String path) {
         if (path == null || path.isEmpty()) {
             throw new IllegalArgumentException("Path cannot be null or empty");
         }
-
-        // Normalize the path: trim, replace multiple slashes with a single slash, replace spaces with hyphens
-        String normalizedPath = path.trim()
-                .replaceAll("/+", "/") // Replace multiple slashes with a single slash
-                .replaceAll(" ", "-"); // Replace spaces with hyphens
-
-        // Remove trailing slash if present
-        if (normalizedPath.endsWith("/")) {
-            normalizedPath = normalizedPath.substring(0, normalizedPath.length() - 1);
-        }
-
-        // Extract and validate the base bucket
-        String baseBucket = extractBaseBucket(normalizedPath);
-
-        // Extract directories part
-        String directoriesPath = normalizedPath.substring(baseBucket.length()).replaceFirst("^/", "");
-        if (directoriesPath.isEmpty()) {
-            return ""; // No directories
-        }
-
-        String[] directories = directoriesPath.split("/");
-        List<String> validBuckets = new ArrayList<>();
-
-        for (String dir : directories) {
-            if (!dir.isEmpty() && isValidBucketName(dir)) {
-                validBuckets.add(dir);
-            } else if (!dir.isEmpty()) {
-                throw new IllegalArgumentException("Invalid directory bucket name: " + dir);
-            }
-        }
-
-        return String.join("/", validBuckets);
     }
 
-    // Validates a bucket name according to general naming rules
+    /**
+     * Normalizes the path by trimming, replacing multiple slashes with a single slash, replacing spaces with hyphens,
+     * removing leading and trailing slashes.
+     * @param path The path to normalize.
+     * @return The normalized path.
+     */
+    private static String normalizePath(String path) {
+        return path.trim()
+                .replaceAll("/+", "/") // Replace multiple slashes with a single slash
+                .replaceAll(" ", "-") // Replace spaces with hyphens
+                .replaceAll("^/|/$", ""); // Remove leading and trailing slashes
+    }
+
+    /**
+     * Validates a bucket name according to general naming rules.
+     * @param bucketName The bucket name to validate.
+     * @return True if the bucket name is valid, false otherwise.
+     */
     private static boolean isValidBucketName(String bucketName) {
         if (bucketName.length() < MIN_BUCKET_NAME_LENGTH || bucketName.length() > MAX_BUCKET_NAME_LENGTH) {
             return false;
@@ -92,52 +117,30 @@ public class FilePathUtil {
         // Determine the storage service type and apply service-specific validation
         switch (STORAGE_SERVICE_TYPE.toLowerCase()) {
             case "minio":
-                if (!isValidMinioBucketName(bucketName)) {
-                    return false;
-                }
-                break;
+                return isValidMinioBucketName(bucketName);
             default:
-                break;
+                return true;
         }
-
-        return true;
     }
-
-    // Validates a bucket name according to MinIO-specific naming rules
-    private static boolean isValidMinioBucketName(String bucketName) {
-        // Check against MinIO-specific regular expression
-        if (!bucketName.matches(MINIO_BUCKET_NAME_REGEX)) {
-            return false;
-        } else if (bucketName.endsWith(RESERVED_SUFFIX)) {
-            return false;
-        } else return !bucketName.matches("^\\d{1,3}(\\.\\d{1,3}){3}$");
-    }
-
 
     /**
-     * Extracts the bucket name and object name from the file path.
-     * @param filePath The full file path including bucket and object name.
-     * @return A BucketObject containing the bucket name and object name.
-     * @throws IllegalArgumentException If the file path does not contain a valid bucket name or object name.
+     * Validates a bucket name according to MinIO-specific naming rules.
+     * @param bucketName The bucket name to validate.
+     * @return True if the bucket name is valid, false otherwise.
      */
-    public static StorageLocation extractBucketAndObjectName(String filePath) throws IllegalArgumentException {
-        if (filePath == null || filePath.trim().isEmpty()) {
-            throw new IllegalArgumentException("File path cannot be null or empty.");
-        }
+    private static boolean isValidMinioBucketName(String bucketName) {
+        return bucketName.matches(MINIO_BUCKET_NAME_REGEX) &&
+                !bucketName.endsWith(RESERVED_SUFFIX) &&
+                !bucketName.matches("^\\d{1,3}(\\.\\d{1,3}){3}$");
+    }
 
-        int firstSlashIndex = filePath.indexOf('/');
-
-        if (firstSlashIndex != -1) {
-            String bucketName = filePath.substring(0, firstSlashIndex);
-            String objectName = filePath.substring(firstSlashIndex + 1);
-
-            if (bucketName.trim().isEmpty() || objectName.trim().isEmpty()) {
-                throw new IllegalArgumentException("The file path must contain a valid bucket name and object name.");
-            }
-
-            return new StorageLocation(bucketName, objectName);
-        } else {
-            throw new IllegalArgumentException("File path must contain '/' to separate bucket and object name.");
-        }
+    /**
+     * Validates the directory path by checking each segment.
+     * @param directoryPath The directory path to validate.
+     * @return True if the directory path is valid, false otherwise.
+     */
+    private static boolean isValidPath(String directoryPath) {
+        return Arrays.stream(directoryPath.split("/"))
+                .allMatch(dir -> dir.isEmpty() || isValidBucketName(dir));
     }
 }

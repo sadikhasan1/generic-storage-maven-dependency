@@ -1,11 +1,10 @@
 package com.dsi.storage.client.minio;
 
 import com.dsi.storage.client.StorageClient;
-import com.dsi.storage.dto.StorageLocation;
+import com.dsi.storage.dto.BucketPath;
 import com.dsi.storage.dto.FileData;
 import com.dsi.storage.exception.StorageException;
 import com.dsi.storage.util.FilePathUtil;
-import com.dsi.storage.util.ValidationUtils;
 import io.minio.*;
 import io.minio.errors.*;
 import org.slf4j.Logger;
@@ -23,34 +22,23 @@ import java.util.UUID;
  * Example: "my-bucket/folder1/folder2/6cbd360f-df93-48eb-901b-87e97a5ddb8e"
  */
 public class MinioStorageService implements StorageClient {
-    private static final String endpoint = System.getenv("STORAGE_ENDPOINT");
-    private static final String accessKey = System.getenv("STORAGE_ACCESS_KEY");
-    private static final String secretKey = System.getenv("STORAGE_SECRET_KEY");
-    private static final long partSize = (System.getenv("STORAGE_PART_SIZE") != null)
-            ? Long.parseLong(System.getenv("STORAGE_PART_SIZE"))
-            : 10485760L; // 10 MB default size
-
+    private final long partSize;
     private final MinioClient minioClient;
     private static final Logger logger = LoggerFactory.getLogger(MinioStorageService.class);
 
-    /**
-     * Constructs a MinioStorageService instance using environment variables for MinIO configuration.
-     */
-    public MinioStorageService() {
-        ValidationUtils.validateNotEmpty(endpoint, accessKey, secretKey);
-        this.minioClient = MinioClient.builder()
-                .endpoint(endpoint)
-                .credentials(accessKey, secretKey)
-                .build();
+    public MinioStorageService(MinioClient minioClient, long partSize) {
+        this.minioClient = minioClient;
+        this.partSize = partSize;
     }
 
     @Override
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
-            String baseBucket = FilePathUtil.extractBaseBucket(fullPath);
-            String directoryBucketString = FilePathUtil.convertPathToDirectoryBucketString(fullPath);
+            BucketPath bucketPath = FilePathUtil.splitPathToBaseBucketAndRemainingWithValidation(fullPath);
+            String baseBucket = bucketPath.baseBucket();
+            String directoryBucketPath = bucketPath.remainingPath();
             String fileId = UUID.randomUUID().toString();
-            logger.debug("Base Bucket: {}, Directory Bucket String: {}, Generated File ID: {}", baseBucket, directoryBucketString, fileId);
+            logger.debug("Base Bucket: {}, Directory Bucket String: {}, Generated File ID: {}", baseBucket, directoryBucketPath, fileId);
 
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(baseBucket).build())) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(baseBucket).build());
@@ -60,13 +48,15 @@ public class MinioStorageService implements StorageClient {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(baseBucket)
-                            .object(directoryBucketString + "/" + fileId)
+                            .object(directoryBucketPath + "/" + fileId)
                             .stream(data, -1, partSize) // -1 for unknown size
                             .contentType(contentType)
                             .build()
             );
 
-            String filePath = baseBucket + "/" + directoryBucketString + "/" + fileId;
+            String filePath = baseBucket +
+                    (directoryBucketPath.isEmpty() ? "" : "/" + directoryBucketPath) +
+                    "/" + fileId;
             logger.info("File uploaded successfully: {}", filePath);
             return filePath;
         } catch (MinioException | IOException | NoSuchAlgorithmException | InvalidKeyException e) {
@@ -78,9 +68,11 @@ public class MinioStorageService implements StorageClient {
     @Override
     public FileData download(String fullPathWithFileId) throws StorageException {
         try {
-            StorageLocation storageLocation = FilePathUtil.extractBucketAndObjectName(fullPathWithFileId);
-            String contentType = getContentType(minioClient, storageLocation);
-            GetObjectResponse response = getObjectResponse(minioClient, storageLocation);
+            BucketPath bucketPath = FilePathUtil.splitFilePathToBaseBucketAndRemaining(fullPathWithFileId);
+            String baseBucket = bucketPath.baseBucket();
+            String fileIdWithDirectoryBucketPath = bucketPath.remainingPath();
+            String contentType = getContentType(minioClient, baseBucket, fileIdWithDirectoryBucketPath);
+            GetObjectResponse response = getObjectResponse(minioClient, baseBucket, fileIdWithDirectoryBucketPath);
 
             logger.info("File downloaded successfully: {}", fullPathWithFileId);
             return new FileData(response, contentType);
@@ -90,21 +82,21 @@ public class MinioStorageService implements StorageClient {
         }
     }
 
-    private static String getContentType(MinioClient minioClient, StorageLocation storageLocation)
+    private static String getContentType(MinioClient minioClient, String baseBucket, String fileIdWithDirectoryBucketPath)
             throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
         StatObjectResponse statObject = minioClient.statObject(StatObjectArgs.builder()
-                .bucket(storageLocation.bucketName())
-                .object(storageLocation.objectName())
+                .bucket(baseBucket)
+                .object(fileIdWithDirectoryBucketPath)
                 .build()
         );
         return statObject.contentType();
     }
 
-    private static GetObjectResponse getObjectResponse(MinioClient minioClient, StorageLocation storageLocation)
+    private static GetObjectResponse getObjectResponse(MinioClient minioClient, String baseBucket, String fileIdWithDirectoryBucketPath)
             throws MinioException, IOException, NoSuchAlgorithmException, InvalidKeyException {
         return minioClient.getObject(GetObjectArgs.builder()
-                .bucket(storageLocation.bucketName())
-                .object(storageLocation.objectName())
+                .bucket(baseBucket)
+                .object(fileIdWithDirectoryBucketPath)
                 .build()
         );
     }

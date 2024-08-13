@@ -6,11 +6,11 @@ package com.dsi.storage.util;
 public class ValidationUtils {
 
     /**
-     * Validates that none of the provided parameters are null or empty.
+     * Validates that none of the provided "required" parameters are null or empty.
      * @param params The parameters to validate.
      * @throws IllegalArgumentException If any of the parameters are null or empty.
      */
-    public static void validateNotEmpty(String... params) throws IllegalArgumentException {
+    public static void emptyCheckOnRequiredFields(String... params) throws IllegalArgumentException {
         StringBuilder errorMessage = new StringBuilder("The following parameters are invalid: ");
         boolean hasInvalidParams = false;
 
