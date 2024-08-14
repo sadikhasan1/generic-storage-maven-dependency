@@ -17,6 +17,11 @@ public class PathUtil {
         // Split the normalized path by '/'
         String[] parts = fullPath.split("/");
 
+        // Trim leading and trailing spaces or hyphens from each part
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = parts[i].replaceAll("^-+|-+$", ""); // Remove leading and trailing hyphens
+        }
+
         // Validate each segment of the path
         if (!ValidationUtils.isValidPath(parts)) {
             throw new IllegalArgumentException("Invalid directory path: " + fullPath);
@@ -24,6 +29,7 @@ public class PathUtil {
 
         return parts;
     }
+
 
     /**
      * Splits a given path into segments for download operations.

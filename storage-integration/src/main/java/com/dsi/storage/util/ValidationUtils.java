@@ -88,6 +88,6 @@ public class ValidationUtils {
      */
     public static boolean isValidPath(String[] parts) {
         return Arrays.stream(parts)
-                .allMatch(dir -> dir.isEmpty() || isValidBucketName(dir));
+                .allMatch(dir -> !dir.isEmpty() && isValidBucketName(dir));
     }
 }
