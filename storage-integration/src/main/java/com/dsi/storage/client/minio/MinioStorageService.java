@@ -26,6 +26,16 @@ public class MinioStorageService implements StorageClient {
     private final MinioClient minioClient;
     private static final Logger logger = LoggerFactory.getLogger(MinioStorageService.class);
 
+    // Regular expression for validating MinIO bucket names:
+    // 1. (?!xn--) - Ensures the bucket name does not start with the prefix 'xn--'.
+    // 2. (?!.*\\.-) - Ensures there is no '.' followed by a '-' anywhere in the name.
+    // 3. (?!.*--) - Ensures there are no consecutive hyphens '--' anywhere in the name.
+    // 4. (?!.*\\.\\.) - Ensures there are no consecutive dots '..' anywhere in the name.
+    // 5. [a-z0-9] - The bucket name must start with a lowercase letter or digit.
+    // 6. (?:[a-z0-9\\-]*[a-z0-9])? - The rest of the name can contain lowercase letters, digits, or hyphens, but must end with a lowercase letter or digit.
+    private static final String MINIO_BUCKET_NAME_REGEX = "^(?!xn--)(?!.*\\.-)(?!.*--)(?!.*\\.\\.)[a-z0-9](?:[a-z0-9\\-]*[a-z0-9])?$";
+    private static final String RESERVED_SUFFIX = "-s3alias";
+
     public MinioStorageService(String endpoint, String accessKey, String secretKey, long partSize) {
         this.minioClient = MinioClient.builder()
                 .endpoint(endpoint)
@@ -38,6 +48,17 @@ public class MinioStorageService implements StorageClient {
     public String upload(String fullPath, InputStream data, String contentType) throws StorageException {
         try {
             String[] parts = PathUtil.splitPathForUpload(fullPath);
+            // Validate each part according to MinIO bucket naming rules
+            boolean allPartsValid = Arrays.stream(parts)
+                    .allMatch(MinioStorageService::isValidMinioBucketName);
+
+            // Check if all parts are valid and handle errors
+            if (!allPartsValid) {
+                String errorMessage = String.format("Invalid path '%s': All segments must adhere to MinIO bucket naming rules.", fullPath);
+                logger.error(errorMessage);
+                throw new StorageException(errorMessage);
+            }
+
             String[] extractedParts = extractPathComponents(parts);
 
             String baseBucket = extractedParts[0];
@@ -80,6 +101,15 @@ public class MinioStorageService implements StorageClient {
     public FileData download(String fullPathWithFileId) throws StorageException {
         try {
             String[] parts = PathUtil.splitPathForDownload(fullPathWithFileId);
+            // Validate all parts except the last one
+            boolean allValidMinioBucketNames = Arrays.stream(parts, 0, parts.length - 1)
+                    .allMatch(MinioStorageService::isValidMinioBucketName);
+
+            if (!allValidMinioBucketNames) {
+                String errorMessage = String.format("The path '%s' is invalid. All segments except the File ID must follow MinIO bucket naming rules.", fullPathWithFileId);
+                logger.error(errorMessage);
+                throw new StorageException(errorMessage);
+            }
 
             String[] extractedParts = extractPathComponents(parts);
 
@@ -121,5 +151,15 @@ public class MinioStorageService implements StorageClient {
         String directoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
 
         return new String[] { baseBucket, directoryBucketPath };
+    }
+
+
+    /**
+     * Validates a bucket name according to MinIO-specific naming rules.
+     */
+    private static boolean isValidMinioBucketName(String bucketName) {
+        return bucketName.matches(MINIO_BUCKET_NAME_REGEX) &&
+                !bucketName.endsWith(RESERVED_SUFFIX) &&
+                !bucketName.matches("^\\d{1,3}(\\.\\d{1,3}){3}$");
     }
 }
