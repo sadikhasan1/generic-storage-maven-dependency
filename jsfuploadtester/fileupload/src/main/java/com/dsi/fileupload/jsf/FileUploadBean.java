@@ -38,7 +38,7 @@ public class FileUploadBean implements Serializable {
     public void upload() {
         if (file != null) {
             try (InputStream inputStream = file.getInputStream()) {
-                filepath = storageService.upload("random/for/test", inputStream, "image/jpeg");
+                filepath = storageService.upload("random/for/test", inputStream, file.getContentType());
             } catch (IOException e) {
                 System.err.println("Error uploading file: " + file.getFileName());
                 e.printStackTrace();
