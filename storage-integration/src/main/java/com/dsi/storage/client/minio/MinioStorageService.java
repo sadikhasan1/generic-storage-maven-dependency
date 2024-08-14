@@ -148,8 +148,9 @@ public class MinioStorageService implements StorageClient {
         }
 
         String baseBucket = parts[0];
-        String directoryBucketPath = String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
-
+        String directoryBucketPath = (parts.length > 1)
+                ? String.join("/", Arrays.copyOfRange(parts, 1, parts.length))
+                : "";
         return new String[] { baseBucket, directoryBucketPath };
     }
 
